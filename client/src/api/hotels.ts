@@ -1,29 +1,31 @@
 import api from "./axios";
 
-export interface HotelSearchParams {
-  keyword?: string;
-  city?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  ratings?: number;
-  sortField?: string;
-  sortOrder?: "asc" | "desc";
-  page?: number;
-  size?: number;
-}
-
 export const hotelsApi = {
-  search(params: HotelSearchParams) {
+  search(params?: {
+    keyword?: string;
+    city?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    ratings?: number;
+    sortField?: string;
+    sortOrder?: string;
+    page?: number;
+    size?: number;
+  }) {
     return api.get("/hotels/search", {
       params,
     });
   },
 
-  getAll() {
-    return api.get("/hotels");
-  },
-
   getHotelInfo(hotelId: number) {
     return api.get(`/hotels/${hotelId}/info`);
+  },
+
+  getRoomTypes(hotelId: number) {
+    return api.get(`/hotels/${hotelId}/rooms`);
+  },
+
+  getAll() {
+    return api.get("/hotels");
   },
 };

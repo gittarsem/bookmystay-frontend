@@ -3,64 +3,233 @@ import { useLocation } from "wouter";
 import {
   Search,
   Calendar,
+  Clock,
   Users,
   MapPin,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-
 export default function SearchWidget() {
-
   const [, setLocation] = useLocation();
 
   const [city, setCity] = useState("");
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
+
+  const [bookingMode, setBookingMode] =
+    useState<"DAILY" | "HOURLY">("DAILY");
+
+  const [checkInDate, setCheckInDate] = useState("");
+  const [checkOutDate, setCheckOutDate] = useState("");
+
+  const [checkInTime, setCheckInTime] = useState("");
+  const [checkOutTime, setCheckOutTime] = useState("");
 
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
 
+  const today =
+    new Date().toISOString().split("T")[0];
+
+  /* =========================================================
+     BOOKING MODE
+     ========================================================= */
+
+  const handleBookingModeChange = (
+    mode: "DAILY" | "HOURLY"
+  ) => {
+    setBookingMode(mode);
+
+    /*
+     * Daily bookings do not use time.
+     */
+    if (mode === "DAILY") {
+      setCheckInTime("");
+      setCheckOutTime("");
+    }
+
+    /*
+     * Hourly bookings are same-day bookings.
+     */
+    if (mode === "HOURLY" && checkInDate) {
+      setCheckOutDate(checkInDate);
+    }
+  };
+
+  /* =========================================================
+     CHECK-IN DATE
+     ========================================================= */
+
+  const handleCheckInDateChange = (
+    value: string
+  ) => {
+    setCheckInDate(value);
+
+    /*
+     * Hourly bookings are always same-day.
+     */
+    if (bookingMode === "HOURLY") {
+      setCheckOutDate(value);
+    }
+
+    /*
+     * For daily bookings, if the current
+     * checkout date becomes invalid, clear it.
+     */
+    if (
+      bookingMode === "DAILY" &&
+      checkOutDate &&
+      value > checkOutDate
+    ) {
+      setCheckOutDate("");
+    }
+  };
+
+  /* =========================================================
+     CHECK-OUT DATE
+     ========================================================= */
+
+  const handleCheckOutDateChange = (
+    value: string
+  ) => {
+    /*
+     * Hourly booking must remain on the
+     * same date as check-in.
+     */
+    if (
+      bookingMode === "HOURLY" &&
+      value !== checkInDate
+    ) {
+      return;
+    }
+
+    setCheckOutDate(value);
+  };
+
+  /* =========================================================
+     SEARCH
+     ========================================================= */
 
   const handleSearch = (
     e: React.FormEvent
   ) => {
-
     e.preventDefault();
+
+    /*
+     * IMPORTANT:
+     *
+     * Search does NOT require dates.
+     *
+     * A user can search:
+     *
+     *   /search
+     *
+     * or:
+     *
+     *   /search?city=Manali
+     *
+     * or:
+     *
+     *   /search?city=Manali&checkInDate=...
+     *
+     * Dates will only be included if the user
+     * actually selected them.
+     */
 
     const params = new URLSearchParams();
 
-    if (city) {
-      params.set("city", city);
+    /* -------------------------------------------------------
+       DESTINATION
+       ------------------------------------------------------- */
+
+    if (city.trim()) {
+      params.set(
+        "city",
+        city.trim()
+      );
     }
 
-    if (checkIn) {
-      params.set("checkIn", checkIn);
+    /* -------------------------------------------------------
+       BOOKING MODE
+       ------------------------------------------------------- */
+
+    params.set(
+      "bookingMode",
+      bookingMode
+    );
+
+    /* -------------------------------------------------------
+       DATES
+       ------------------------------------------------------- */
+
+    if (checkInDate) {
+      params.set(
+        "checkInDate",
+        checkInDate
+      );
     }
 
-    if (checkOut) {
-      params.set("checkOut", checkOut);
+    if (checkOutDate) {
+      params.set(
+        "checkOutDate",
+        checkOutDate
+      );
     }
+
+    /* -------------------------------------------------------
+       HOURLY TIME
+       ------------------------------------------------------- */
+
+    /*
+     * Time is sent ONLY for hourly searches.
+     *
+     * Since search dates/times are optional,
+     * we do NOT validate them here.
+     */
+
+    if (bookingMode === "HOURLY") {
+      if (checkInTime) {
+        params.set(
+          "checkInTime",
+          checkInTime
+        );
+      }
+
+      if (checkOutTime) {
+        params.set(
+          "checkOutTime",
+          checkOutTime
+        );
+      }
+    }
+
+    /* -------------------------------------------------------
+       GUESTS
+       ------------------------------------------------------- */
 
     params.set(
       "adults",
       adults.toString()
     );
 
-    if (children > 0) {
-      params.set(
-        "children",
-        children.toString()
-      );
-    }
+    params.set(
+      "children",
+      children.toString()
+    );
+
+    /* -------------------------------------------------------
+       NAVIGATE
+       ------------------------------------------------------- */
+
+    const queryString =
+      params.toString();
 
     setLocation(
-      `/search?${params.toString()}`
+      queryString
+        ? `/search?${queryString}`
+        : "/search"
     );
   };
 
-
   return (
-
     <motion.form
       initial={{
         opacity: 0,
@@ -88,6 +257,85 @@ export default function SearchWidget() {
         md:p-6
       "
     >
+      {/* =====================================================
+          BOOKING MODE
+          ===================================================== */}
+
+      <div className="mb-5">
+        <label
+          className="
+            mb-2
+            block
+            text-xs
+            font-medium
+            uppercase
+            tracking-widest
+            text-muted-foreground
+          "
+        >
+          Booking Type
+        </label>
+
+        <div
+          className="
+            flex
+            w-fit
+            rounded-2xl
+            border
+            border-warm-stone/30
+            bg-white
+            p-1
+          "
+        >
+          <button
+            type="button"
+            onClick={() =>
+              handleBookingModeChange("DAILY")
+            }
+            className={`
+              rounded-xl
+              px-6
+              py-2.5
+              text-sm
+              font-semibold
+              transition-all
+              ${
+                bookingMode === "DAILY"
+                  ? "bg-bronze text-white shadow-sm"
+                  : "text-espresso hover:bg-warm-stone/10"
+              }
+            `}
+          >
+            Daily
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              handleBookingModeChange("HOURLY")
+            }
+            className={`
+              rounded-xl
+              px-6
+              py-2.5
+              text-sm
+              font-semibold
+              transition-all
+              ${
+                bookingMode === "HOURLY"
+                  ? "bg-bronze text-white shadow-sm"
+                  : "text-espresso hover:bg-warm-stone/10"
+              }
+            `}
+          >
+            Hourly
+          </button>
+        </div>
+      </div>
+
+      {/* =====================================================
+          SEARCH FIELDS
+          ===================================================== */}
 
       <div
         className="
@@ -99,13 +347,11 @@ export default function SearchWidget() {
           lg:gap-4
         "
       >
-
-        {/* =====================================
+        {/* ===================================================
             DESTINATION
-        ====================================== */}
+            =================================================== */}
 
         <div className="md:col-span-3">
-
           <label
             className="
               mb-2
@@ -121,7 +367,6 @@ export default function SearchWidget() {
           </label>
 
           <div className="relative">
-
             <MapPin
               className="
                 absolute
@@ -161,18 +406,20 @@ export default function SearchWidget() {
                 focus:ring-bronze/20
               "
             />
-
           </div>
-
         </div>
 
+        {/* ===================================================
+            CHECK-IN DATE
+            =================================================== */}
 
-        {/* =====================================
-            CHECK IN
-        ====================================== */}
-
-        <div className="md:col-span-2">
-
+        <div
+          className={
+            bookingMode === "HOURLY"
+              ? "md:col-span-2"
+              : "md:col-span-3"
+          }
+        >
           <label
             className="
               mb-2
@@ -188,7 +435,6 @@ export default function SearchWidget() {
           </label>
 
           <div className="relative">
-
             <Calendar
               className="
                 pointer-events-none
@@ -205,9 +451,12 @@ export default function SearchWidget() {
 
             <input
               type="date"
-              value={checkIn}
+              value={checkInDate}
+              min={today}
               onChange={(e) =>
-                setCheckIn(e.target.value)
+                handleCheckInDateChange(
+                  e.target.value
+                )
               }
               className="
                 h-14
@@ -229,18 +478,86 @@ export default function SearchWidget() {
                 focus:ring-bronze/20
               "
             />
-
           </div>
-
         </div>
 
+        {/* ===================================================
+            CHECK-IN TIME — HOURLY ONLY
+            =================================================== */}
 
-        {/* =====================================
-            CHECK OUT
-        ====================================== */}
+        {bookingMode === "HOURLY" && (
+          <div className="md:col-span-2">
+            <label
+              className="
+                mb-2
+                block
+                text-xs
+                font-medium
+                uppercase
+                tracking-widest
+                text-muted-foreground
+              "
+            >
+              Check In Time
+            </label>
 
-        <div className="md:col-span-2">
+            <div className="relative">
+              <Clock
+                className="
+                  pointer-events-none
+                  absolute
+                  left-4
+                  top-1/2
+                  z-10
+                  h-5
+                  w-5
+                  -translate-y-1/2
+                  text-bronze
+                "
+              />
 
+              <input
+                type="time"
+                value={checkInTime}
+                onChange={(e) =>
+                  setCheckInTime(
+                    e.target.value
+                  )
+                }
+                className="
+                  h-14
+                  w-full
+                  rounded-2xl
+                  border
+                  border-warm-stone/30
+                  bg-white
+                  px-4
+                  pl-12
+                  text-sm
+                  text-espresso
+                  shadow-sm
+                  outline-none
+                  transition-all
+                  focus:border-bronze
+                  focus:ring-2
+                  focus:ring-bronze/20
+                "
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================
+            CHECK-OUT DATE
+            =================================================== */}
+
+        <div
+          className={
+            bookingMode === "HOURLY"
+              ? "md:col-span-2"
+              : "md:col-span-3"
+          }
+        >
           <label
             className="
               mb-2
@@ -256,7 +573,6 @@ export default function SearchWidget() {
           </label>
 
           <div className="relative">
-
             <Calendar
               className="
                 pointer-events-none
@@ -273,9 +589,19 @@ export default function SearchWidget() {
 
             <input
               type="date"
-              value={checkOut}
+              value={checkOutDate}
+              min={
+                checkInDate || today
+              }
+              max={
+                bookingMode === "HOURLY"
+                  ? checkInDate
+                  : undefined
+              }
               onChange={(e) =>
-                setCheckOut(e.target.value)
+                handleCheckOutDateChange(
+                  e.target.value
+                )
               }
               className="
                 h-14
@@ -297,18 +623,80 @@ export default function SearchWidget() {
                 focus:ring-bronze/20
               "
             />
-
           </div>
-
         </div>
 
+        {/* ===================================================
+            CHECK-OUT TIME — HOURLY ONLY
+            =================================================== */}
 
-        {/* =====================================
+        {bookingMode === "HOURLY" && (
+          <div className="md:col-span-2">
+            <label
+              className="
+                mb-2
+                block
+                text-xs
+                font-medium
+                uppercase
+                tracking-widest
+                text-muted-foreground
+              "
+            >
+              Check Out Time
+            </label>
+
+            <div className="relative">
+              <Clock
+                className="
+                  pointer-events-none
+                  absolute
+                  left-4
+                  top-1/2
+                  z-10
+                  h-5
+                  w-5
+                  -translate-y-1/2
+                  text-bronze
+                "
+              />
+
+              <input
+                type="time"
+                value={checkOutTime}
+                onChange={(e) =>
+                  setCheckOutTime(
+                    e.target.value
+                  )
+                }
+                className="
+                  h-14
+                  w-full
+                  rounded-2xl
+                  border
+                  border-warm-stone/30
+                  bg-white
+                  px-4
+                  pl-12
+                  text-sm
+                  text-espresso
+                  shadow-sm
+                  outline-none
+                  transition-all
+                  focus:border-bronze
+                  focus:ring-2
+                  focus:ring-bronze/20
+                "
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================
             GUESTS
-        ====================================== */}
+            =================================================== */}
 
         <div className="md:col-span-3">
-
           <label
             className="
               mb-2
@@ -337,7 +725,6 @@ export default function SearchWidget() {
               shadow-sm
             "
           >
-
             <Users
               className="
                 mr-3
@@ -348,7 +735,7 @@ export default function SearchWidget() {
               "
             />
 
-            {/* Adults */}
+            {/* ADULTS */}
 
             <select
               value={adults}
@@ -368,10 +755,8 @@ export default function SearchWidget() {
                 outline-none
               "
             >
-
               {[1, 2, 3, 4, 5, 6].map(
                 (n) => (
-
                   <option
                     key={n}
                     value={n}
@@ -379,12 +764,9 @@ export default function SearchWidget() {
                     {n} Adult
                     {n > 1 ? "s" : ""}
                   </option>
-
                 )
               )}
-
             </select>
-
 
             <span
               className="
@@ -395,8 +777,7 @@ export default function SearchWidget() {
               |
             </span>
 
-
-            {/* Children */}
+            {/* CHILDREN */}
 
             <select
               value={children}
@@ -416,10 +797,8 @@ export default function SearchWidget() {
                 outline-none
               "
             >
-
               {[0, 1, 2, 3].map(
                 (n) => (
-
                   <option
                     key={n}
                     value={n}
@@ -429,20 +808,15 @@ export default function SearchWidget() {
                       ? "ren"
                       : ""}
                   </option>
-
                 )
               )}
-
             </select>
-
           </div>
-
         </div>
 
-
-        {/* =====================================
+        {/* ===================================================
             SEARCH BUTTON
-        ====================================== */}
+            =================================================== */}
 
         <div
           className="
@@ -451,7 +825,6 @@ export default function SearchWidget() {
             md:col-span-2
           "
         >
-
           <button
             type="submit"
             className="
@@ -475,19 +848,14 @@ export default function SearchWidget() {
               active:scale-[0.97]
             "
           >
-
             <Search className="h-5 w-5" />
 
             <span>
               Search
             </span>
-
           </button>
-
         </div>
-
       </div>
-
     </motion.form>
   );
 }

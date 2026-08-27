@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { motion } from "framer-motion";
+
 import {
   ArrowLeft,
   ChevronDown,
@@ -9,12 +10,58 @@ import {
   CreditCard,
   ShieldCheck,
 } from "lucide-react";
+
 import { toast } from "sonner";
 
 import MainLayout from "@/layouts/MainLayout";
 import { bookingsApi, paymentsApi } from "@/api";
 import { openRazorpay } from "@/utils/openRazorPay";
 
+
+/* =========================================================
+   TYPES
+========================================================= */
+
+type BookingMode = "DAILY" | "HOURLY";
+
+
+interface BookingDetails {
+
+  bookingId: number;
+
+  hotelName: string;
+
+  city: string;
+
+  roomType: string;
+
+  bookingMode: BookingMode;
+
+  checkInDate: string;
+
+  checkOutDate: string;
+
+  checkInTime?: string | null;
+
+  checkOutTime?: string | null;
+
+  adultCount: number;
+
+  childCount: number;
+
+  amount: number;
+
+  bookingStatus: string;
+
+  paymentStatus: string;
+
+  guests: unknown[];
+}
+
+
+/* =========================================================
+   COMPONENT
+========================================================= */
 
 export default function Booking() {
 
@@ -26,15 +73,15 @@ export default function Booking() {
   const [, setLocation] = useLocation();
 
 
-  // =====================================================
-  // STATE
-  // =====================================================
+  /* =======================================================
+     STATE
+  ======================================================= */
 
   const [loading, setLoading] =
     useState(true);
 
   const [booking, setBooking] =
-    useState<any>(null);
+    useState<BookingDetails | null>(null);
 
   const [expiresAt, setExpiresAt] =
     useState<Date | null>(null);
@@ -49,9 +96,9 @@ export default function Booking() {
     useState(false);
 
 
-  // =====================================================
-  // BOOKING EXPIRY TIMER
-  // =====================================================
+  /* =======================================================
+     BOOKING EXPIRY TIMER
+  ======================================================= */
 
   useEffect(() => {
 
@@ -96,44 +143,90 @@ export default function Booking() {
     return () =>
       clearInterval(interval);
 
-  }, [expiresAt, params?.bookingId, setLocation]);
+  }, [
+    expiresAt,
+    params?.bookingId,
+    setLocation,
+  ]);
 
 
-  // =====================================================
-  // FETCH BOOKING
-  // =====================================================
+  /* =======================================================
+     FETCH BOOKING
+  ======================================================= */
 
   useEffect(() => {
 
-    fetchBooking();
+    console.log(
+      "Booking page mounted. bookingId:",
+      params?.bookingId
+    );
+
+    if (!params?.bookingId) {
+
+      console.error(
+        "Booking ID is missing"
+      );
+
+      setLoading(false);
+
+      return;
+    }
+
+    fetchBooking(
+      params.bookingId
+    );
 
   }, [params?.bookingId]);
 
 
-  async function fetchBooking() {
-
-    if (!params?.bookingId) {
-      return;
-    }
+  async function fetchBooking(
+    bookingId: string
+  ) {
 
     try {
 
       setLoading(true);
 
+      console.log(
+        "Fetching booking:",
+        bookingId
+      );
+
       const { data } =
         await bookingsApi.getBookingDetails(
-          Number(params.bookingId)
+          Number(bookingId)
         );
+
+      console.log(
+        "BOOKING DETAILS RESPONSE:",
+        data
+      );
 
       setBooking(data);
 
-    } catch (err) {
+    } catch (err: any) {
 
-      console.error(err);
+      console.error(
+        "BOOKING FETCH ERROR:",
+        err
+      );
+
+      console.error(
+        "STATUS:",
+        err?.response?.status
+      );
+
+      console.error(
+        "RESPONSE:",
+        err?.response?.data
+      );
 
       toast.error(
+        err?.response?.data?.message ||
         "Failed to load booking."
       );
+
+      setBooking(null);
 
     } finally {
 
@@ -144,9 +237,9 @@ export default function Booking() {
   }
 
 
-  // =====================================================
-  // CONTINUE TO PAYMENT
-  // =====================================================
+  /* =======================================================
+     CONTINUE TO PAYMENT
+  ======================================================= */
 
   async function continueToPayment() {
 
@@ -190,9 +283,9 @@ export default function Booking() {
   }
 
 
-  // =====================================================
-  // LOADING
-  // =====================================================
+  /* =======================================================
+     LOADING
+  ======================================================= */
 
   if (loading) {
 
@@ -200,9 +293,19 @@ export default function Booking() {
 
       <MainLayout>
 
-        <div className="container py-20 text-center">
+        <div
+          className="
+            container
+            py-20
+            text-center
+          "
+        >
 
-          <p className="text-muted-foreground">
+          <p
+            className="
+              text-muted-foreground
+            "
+          >
             Loading booking...
           </p>
 
@@ -215,9 +318,9 @@ export default function Booking() {
   }
 
 
-  // =====================================================
-  // BOOKING NOT FOUND
-  // =====================================================
+  /* =======================================================
+     BOOKING NOT FOUND
+  ======================================================= */
 
   if (!booking) {
 
@@ -225,7 +328,13 @@ export default function Booking() {
 
       <MainLayout>
 
-        <div className="container py-20 text-center">
+        <div
+          className="
+            container
+            py-20
+            text-center
+          "
+        >
 
           <h1
             className="
@@ -262,9 +371,9 @@ export default function Booking() {
   }
 
 
-  // =====================================================
-  // CALCULATIONS
-  // =====================================================
+  /* =======================================================
+     CALCULATIONS
+  ======================================================= */
 
   const nights = Math.max(
     1,
@@ -282,22 +391,100 @@ export default function Booking() {
   );
 
 
+  /*
+   * Calculate hourly duration.
+   *
+   * Example:
+   *
+   * 16:00 -> 18:00 = 2 Hours
+   *
+   * 10:00 -> 14:00 = 4 Hours
+   */
+
+  const calculateHours = (
+    checkIn: string,
+    checkOut: string
+  ) => {
+
+    const [
+      inHour,
+      inMinute,
+    ] =
+      checkIn
+        .split(":")
+        .map(Number);
+
+    const [
+      outHour,
+      outMinute,
+    ] =
+      checkOut
+        .split(":")
+        .map(Number);
+
+    const startMinutes =
+      inHour * 60 +
+      inMinute;
+
+    const endMinutes =
+      outHour * 60 +
+      outMinute;
+
+    /*
+     * Normally hourly bookings
+     * are on the same day.
+     *
+     * Handle midnight crossing
+     * safely as well.
+     */
+
+    let duration =
+      endMinutes -
+      startMinutes;
+
+    if (duration < 0) {
+      duration += 24 * 60;
+    }
+
+    return duration / 60;
+  };
+
+
+  const hourlyDuration =
+    booking.bookingMode === "HOURLY" &&
+    booking.checkInTime &&
+    booking.checkOutTime
+      ? calculateHours(
+          booking.checkInTime,
+          booking.checkOutTime
+        )
+      : 0;
+
+
   const total =
     Number(booking.amount) || 0;
 
 
+  /*
+   * Current frontend calculation.
+   *
+   * 85% room charge
+   * 15% taxes
+   */
+
   const subtotal =
-    Math.round(total * 0.85);
+    Math.round(
+      total * 0.85
+    );
 
 
   const taxes =
     total - subtotal;
 
 
-  // =====================================================
-  // REFUND POLICY
-  // Matches backend RefundPolicy.java
-  // =====================================================
+  /* =======================================================
+     REFUND POLICY
+  ======================================================= */
 
   const calculateRefundPercentage = (
     checkInDate: string
@@ -308,9 +495,24 @@ export default function Booking() {
     const checkIn =
       new Date(checkInDate);
 
-    // Compare dates only, similar to LocalDate
-    today.setHours(0, 0, 0, 0);
-    checkIn.setHours(0, 0, 0, 0);
+    /*
+     * Compare dates only,
+     * similar to LocalDate.
+     */
+
+    today.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    checkIn.setHours(
+      0,
+      0,
+      0,
+      0
+    );
 
     const diffMs =
       checkIn.getTime() -
@@ -353,6 +555,10 @@ export default function Booking() {
     );
 
 
+  /* =======================================================
+     FORMAT DATE
+  ======================================================= */
+
   const formatDate = (
     date: string
   ) => {
@@ -371,6 +577,48 @@ export default function Booking() {
   };
 
 
+  /* =======================================================
+     FORMAT TIME
+  ======================================================= */
+
+  const formatTime = (
+    time: string
+  ) => {
+
+    const [
+      hours,
+      minutes,
+    ] =
+      time
+        .split(":")
+        .map(Number);
+
+    const date =
+      new Date();
+
+    date.setHours(
+      hours,
+      minutes,
+      0,
+      0
+    );
+
+    return date.toLocaleTimeString(
+      "en-IN",
+      {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }
+    );
+
+  };
+
+
+  /* =======================================================
+     FORMAT CURRENCY
+  ======================================================= */
+
   const formatCurrency = (
     amount: number
   ) => {
@@ -385,9 +633,9 @@ export default function Booking() {
   };
 
 
-  // =====================================================
-  // RENDER
-  // =====================================================
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
 
@@ -747,7 +995,40 @@ export default function Booking() {
                   </div>
 
 
-                  {/* Dates */}
+                  {/* Booking Mode */}
+
+                  <div>
+
+                    <p
+                      className="
+                        text-xs
+                        font-medium
+                        uppercase
+                        tracking-widest
+                        text-muted-foreground
+                      "
+                    >
+                      Booking Mode
+                    </p>
+
+                    <p
+                      className="
+                        mt-1
+                        font-medium
+                        text-espresso
+                      "
+                    >
+                      {booking.bookingMode === "HOURLY"
+                        ? "Hourly"
+                        : "Daily"}
+                    </p>
+
+                  </div>
+
+
+                  {/* =================================================
+                      DATES
+                  ================================================= */}
 
                   <div
                     className="
@@ -757,6 +1038,8 @@ export default function Booking() {
                       sm:grid-cols-2
                     "
                   >
+
+                    {/* Check In */}
 
                     <div
                       className="
@@ -790,8 +1073,33 @@ export default function Booking() {
                         )}
                       </p>
 
+
+                      {/* =================================================
+                          ONLY SHOW TIME FOR HOURLY
+                      ================================================= */}
+
+                      {booking.bookingMode === "HOURLY" &&
+                        booking.checkInTime && (
+
+                          <p
+                            className="
+                              mt-1
+                              text-sm
+                              font-medium
+                              text-muted-foreground
+                            "
+                          >
+                            {formatTime(
+                              booking.checkInTime
+                            )}
+                          </p>
+
+                        )}
+
                     </div>
 
+
+                    {/* Check Out */}
 
                     <div
                       className="
@@ -825,12 +1133,37 @@ export default function Booking() {
                         )}
                       </p>
 
+
+                      {/* =================================================
+                          ONLY SHOW TIME FOR HOURLY
+                      ================================================= */}
+
+                      {booking.bookingMode === "HOURLY" &&
+                        booking.checkOutTime && (
+
+                          <p
+                            className="
+                              mt-1
+                              text-sm
+                              font-medium
+                              text-muted-foreground
+                            "
+                          >
+                            {formatTime(
+                              booking.checkOutTime
+                            )}
+                          </p>
+
+                        )}
+
                     </div>
 
                   </div>
 
 
-                  {/* Guests + Nights */}
+                  {/* =================================================
+                      GUESTS + DURATION
+                  ================================================= */}
 
                   <div
                     className="
@@ -840,6 +1173,8 @@ export default function Booking() {
                       sm:grid-cols-2
                     "
                   >
+
+                    {/* Guests */}
 
                     <div
                       className="
@@ -869,6 +1204,7 @@ export default function Booking() {
                           text-espresso
                         "
                       >
+
                         {booking.adultCount} Adult
                         {booking.adultCount !== 1
                           ? "s"
@@ -880,10 +1216,15 @@ export default function Booking() {
                         {booking.childCount !== 1
                           ? "ren"
                           : ""}
+
                       </p>
 
                     </div>
 
+
+                    {/* =================================================
+                        DURATION
+                    ================================================= */}
 
                     <div
                       className="
@@ -906,6 +1247,7 @@ export default function Booking() {
                         Stay Duration
                       </p>
 
+
                       <p
                         className="
                           mt-1
@@ -913,10 +1255,20 @@ export default function Booking() {
                           text-espresso
                         "
                       >
-                        {nights} Night
-                        {nights !== 1
-                          ? "s"
-                          : ""}
+
+                        {booking.bookingMode === "HOURLY"
+                          ? `${hourlyDuration} ${
+                              hourlyDuration === 1
+                                ? "Hour"
+                                : "Hours"
+                            }`
+                          : `${nights} ${
+                              nights === 1
+                                ? "Night"
+                                : "Nights"
+                            }`
+                        }
+
                       </p>
 
                     </div>
@@ -1333,7 +1685,9 @@ export default function Booking() {
                 </div>
 
 
-                {/* Payment Button */}
+                {/* =================================================
+                    PAYMENT BUTTON
+                ================================================= */}
 
                 <button
                   onClick={
@@ -1364,6 +1718,7 @@ export default function Booking() {
                   {paymentLoading ? (
 
                     <>
+
                       <span
                         className="
                           h-4
@@ -1383,11 +1738,16 @@ export default function Booking() {
                   ) : (
 
                     <>
+
                       <CreditCard
-                        className="h-4 w-4"
+                        className="
+                          h-4
+                          w-4
+                        "
                       />
 
                       Continue to Payment
+
                     </>
 
                   )}
@@ -1623,6 +1983,8 @@ export default function Booking() {
                       </p>
 
 
+                      {/* 7+ days */}
+
                       <div
                         className="
                           flex
@@ -1655,6 +2017,8 @@ export default function Booking() {
 
                       </div>
 
+
+                      {/* 3-6 days */}
 
                       <div
                         className="
@@ -1689,6 +2053,8 @@ export default function Booking() {
                       </div>
 
 
+                      {/* 1-2 days */}
+
                       <div
                         className="
                           flex
@@ -1721,6 +2087,8 @@ export default function Booking() {
 
                       </div>
 
+
+                      {/* Same day */}
 
                       <div
                         className="
@@ -1787,4 +2155,5 @@ export default function Booking() {
     </MainLayout>
 
   );
+
 }

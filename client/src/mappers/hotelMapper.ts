@@ -1,36 +1,56 @@
-import { MOCK_HOTELS } from "@/lib/mockData";
+import type { Hotel } from "@/types";
 
-export function mapHotel(document: any, index: number) {
-  const template = MOCK_HOTELS[index % MOCK_HOTELS.length];
+interface HotelSearchDocument {
+  id: string;
+  name: string;
+  city: string;
+  price: number;
+  ratings: number;
+  reviewCount: number;
+  active: boolean;
+  thumbnail: string | null;
+}
 
+export function mapHotel(document: HotelSearchDocument): Hotel {
   return {
-    ...template,
+    id: String(document.id),
 
-    id: document.id,
     name: document.name,
 
+    description: "",
+
     location: {
-      ...template.location,
       city: document.city,
+      state: "",
+      country: "India",
+      address: "",
+      latitude: 0,
+      longitude: 0,
     },
+
+    images: document.thumbnail
+      ? [document.thumbnail]
+      : [],
+
+    amenities: [],
+
+    rating: document.ratings ?? 0,
+
+    reviewCount: document.reviewCount ?? 0,
 
     priceRange: {
-      min: document.price ?? template.priceRange.min,
-      max: document.price ?? template.priceRange.max,
+      min: document.price ?? 0,
+      max: document.price ?? 0,
     },
 
-    rating: document.ratings ?? template.rating,
+    isActive: document.active ?? false,
 
-    // ✅ Use Cloudinary thumbnail if available
-    images:
-      document.thumbnail && document.thumbnail.length > 0
-        ? [document.thumbnail]
-        : template.images,
-
-    isActive: document.active,
+    createdAt: "",
   };
 }
 
-export function mapHotels(documents: any[] = []) {
+export function mapHotels(
+  documents: HotelSearchDocument[] = []
+): Hotel[] {
   return documents.map(mapHotel);
 }

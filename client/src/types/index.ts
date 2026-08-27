@@ -150,59 +150,9 @@ export interface Guest {
   gender: "MALE" | "FEMALE" | "Others";
 }
 
-export interface BookingDetails {
-  bookingId: number;
 
-  hotelName: string;
-  city: string;
 
-  roomType: string;
 
-  checkInDate: string;
-  checkOutDate: string;
-
-  adultCount: number;
-  childCount: number;
-
-  bookingStatus: string;
-  paymentStatus: string;
-
-  amount: number;
-
-  guests: Guest[];
-}
-
-export interface BookingHistory {
-
-  bookingId: number;
-
-  hotelId: number;
-
-  hotelName: string;
-
-  hotelImage: string;
-
-  city: string;
-
-  roomType: string;
-
-  checkInDate: string;
-
-  checkOutDate: string;
-
-  adultCount: number;
-
-  childCount: number;
-
-  bookingStatus: string;
-
-  paymentStatus: string;
-
-  amount: number;
-
-  reviewId: number | null;
-
-}
 
 export interface BookingCancelDTO {
     bookingId: number;
@@ -239,4 +189,58 @@ export interface ReviewResponse {
     rating: number;
     comment: string;
     createdAt: string;
+}
+
+/* =========================================================
+   BOOKING TYPES
+   ========================================================= */
+
+export type BookingMode =
+  | "DAILY"
+  | "HOURLY";
+
+
+export interface BookingGuest {
+
+  id: number;
+
+  name: string;
+
+  gender: string;
+
+  age: number;
+}
+
+
+export interface BookingDetails {
+
+  bookingId: number;
+
+  hotelName: string;
+
+  city: string;
+
+  roomType: string;
+
+  bookingMode: BookingMode;
+
+  checkInDate: string;
+
+  checkOutDate: string;
+
+  checkInTime: string | null;
+
+  checkOutTime: string | null;
+
+  adultCount: number;
+
+  childCount: number;
+
+  amount: number;
+
+  bookingStatus: string;
+
+  paymentStatus: string;
+
+  guests: BookingGuest[];
 }
