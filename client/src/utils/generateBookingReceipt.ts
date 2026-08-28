@@ -37,6 +37,14 @@ export async function generateBookingReceipt(
 
     let y = 14;
 
+    /*
+     * IMPORTANT
+     *
+     * Only hourly bookings should display time.
+     */
+    const isHourly =
+        booking.bookingMode === "HOURLY";
+
     // =========================================================
     // LOAD LOGO
     // =========================================================
@@ -53,12 +61,24 @@ export async function generateBookingReceipt(
             12
         );
     } catch (error) {
-        console.error("Unable to load BookMyStay logo:", error);
+        console.error(
+            "Unable to load BookMyStay logo:",
+            error
+        );
 
         // Fallback if logo cannot be loaded
-        doc.setFont("helvetica", "bold");
+        doc.setFont(
+            "helvetica",
+            "bold"
+        );
+
         doc.setFontSize(18);
-        doc.setTextColor(180, 105, 45);
+
+        doc.setTextColor(
+            180,
+            105,
+            45
+        );
 
         doc.text(
             "BookMyStay",
@@ -71,9 +91,18 @@ export async function generateBookingReceipt(
     // HEADER TITLE
     // =========================================================
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont(
+        "helvetica",
+        "normal"
+    );
+
     doc.setFontSize(10);
-    doc.setTextColor(70, 70, 70);
+
+    doc.setTextColor(
+        70,
+        70,
+        70
+    );
 
     doc.text(
         "Hotel Booking Voucher",
@@ -92,9 +121,18 @@ export async function generateBookingReceipt(
     // HOTEL INFORMATION
     // =========================================================
 
-    doc.setFont("helvetica", "bold");
+    doc.setFont(
+        "helvetica",
+        "bold"
+    );
+
     doc.setFontSize(13);
-    doc.setTextColor(45, 30, 25);
+
+    doc.setTextColor(
+        45,
+        30,
+        25
+    );
 
     doc.text(
         booking.hotelName || "Hotel",
@@ -104,9 +142,18 @@ export async function generateBookingReceipt(
 
     y += 5;
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont(
+        "helvetica",
+        "normal"
+    );
+
     doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
+
+    doc.setTextColor(
+        100,
+        100,
+        100
+    );
 
     doc.text(
         booking.city || "",
@@ -144,7 +191,9 @@ export async function generateBookingReceipt(
     );
 
     drawValue(
-        formatDate(booking.checkInDate),
+        formatDate(
+            booking.checkInDate
+        ),
         col2,
         y + 5,
         true
@@ -157,11 +206,73 @@ export async function generateBookingReceipt(
     );
 
     drawValue(
-        formatDate(booking.checkOutDate),
+        formatDate(
+            booking.checkOutDate
+        ),
         col3,
         y + 5,
         true
     );
+
+    /*
+     * HOURLY TIME
+     *
+     * DAILY:
+     * No time is displayed.
+     *
+     * HOURLY:
+     * Check-in and check-out times are displayed.
+     */
+    if (
+        isHourly &&
+        booking.checkInTime &&
+        booking.checkOutTime
+    ) {
+        y += 14;
+
+        drawLabel(
+            "CHECK-IN TIME",
+            col1,
+            y
+        );
+
+        drawValue(
+            formatTime(
+                booking.checkInTime
+            ),
+            col1,
+            y + 5,
+            true
+        );
+
+        drawLabel(
+            "CHECK-OUT TIME",
+            col2,
+            y
+        );
+
+        drawValue(
+            formatTime(
+                booking.checkOutTime
+            ),
+            col2,
+            y + 5,
+            true
+        );
+
+        drawLabel(
+            "BOOKING MODE",
+            col3,
+            y
+        );
+
+        drawValue(
+            "HOURLY",
+            col3,
+            y + 5,
+            true
+        );
+    }
 
     y += 14;
 
@@ -186,7 +297,9 @@ export async function generateBookingReceipt(
     );
 
     drawValue(
-        String(booking.roomType ?? "-"),
+        String(
+            booking.roomType ?? "-"
+        ),
         col1,
         y + 5,
         true
@@ -199,7 +312,9 @@ export async function generateBookingReceipt(
     );
 
     drawValue(
-        String(booking.adultCount ?? 0),
+        String(
+            booking.adultCount ?? 0
+        ),
         col2,
         y + 5,
         true
@@ -212,7 +327,9 @@ export async function generateBookingReceipt(
     );
 
     drawValue(
-        String(booking.childCount ?? 0),
+        String(
+            booking.childCount ?? 0
+        ),
         col3,
         y + 5,
         true
@@ -239,7 +356,9 @@ export async function generateBookingReceipt(
     );
 
     drawValue(
-        String(booking.paymentStatus ?? "-"),
+        String(
+            booking.paymentStatus ?? "-"
+        ),
         col1,
         y + 5,
         true
@@ -252,7 +371,9 @@ export async function generateBookingReceipt(
     );
 
     drawValue(
-        String(booking.bookingStatus ?? "-"),
+        String(
+            booking.bookingStatus ?? "-"
+        ),
         col2,
         y + 5,
         true
@@ -264,12 +385,23 @@ export async function generateBookingReceipt(
         y
     );
 
-    doc.setFont("helvetica", "bold");
+    doc.setFont(
+        "helvetica",
+        "bold"
+    );
+
     doc.setFontSize(10);
-    doc.setTextColor(20, 140, 70);
+
+    doc.setTextColor(
+        20,
+        140,
+        70
+    );
 
     doc.text(
-        `INR ${formatAmount(booking.amount)}`,
+        `INR ${formatAmount(
+            booking.amount
+        )}`,
         col3,
         y + 5
     );
@@ -297,9 +429,18 @@ export async function generateBookingReceipt(
 
         // Guest table headers
 
-        doc.setFont("helvetica", "bold");
+        doc.setFont(
+            "helvetica",
+            "bold"
+        );
+
         doc.setFontSize(7.5);
-        doc.setTextColor(100, 100, 100);
+
+        doc.setTextColor(
+            100,
+            100,
+            100
+        );
 
         doc.text(
             "GUEST",
@@ -330,7 +471,12 @@ export async function generateBookingReceipt(
                 );
 
                 doc.setFontSize(8.5);
-                doc.setTextColor(45, 45, 45);
+
+                doc.setTextColor(
+                    45,
+                    45,
+                    45
+                );
 
                 doc.text(
                     `${index + 1}. ${guest.name}`,
@@ -339,13 +485,17 @@ export async function generateBookingReceipt(
                 );
 
                 doc.text(
-                    String(guest.gender ?? "-"),
+                    String(
+                        guest.gender ?? "-"
+                    ),
                     col2,
                     y
                 );
 
                 doc.text(
-                    String(guest.age ?? "-"),
+                    String(
+                        guest.age ?? "-"
+                    ),
                     col3,
                     y
                 );
@@ -356,9 +506,18 @@ export async function generateBookingReceipt(
 
     } else {
 
-        doc.setFont("helvetica", "normal");
+        doc.setFont(
+            "helvetica",
+            "normal"
+        );
+
         doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
+
+        doc.setTextColor(
+            100,
+            100,
+            100
+        );
 
         doc.text(
             "No guest details were added.",
@@ -391,12 +550,23 @@ export async function generateBookingReceipt(
         y
     );
 
-    doc.setFont("helvetica", "bold");
+    doc.setFont(
+        "helvetica",
+        "bold"
+    );
+
     doc.setFontSize(9);
-    doc.setTextColor(45, 45, 45);
+
+    doc.setTextColor(
+        45,
+        45,
+        45
+    );
 
     doc.text(
-        `INR ${formatAmount(booking.amount)}`,
+        `INR ${formatAmount(
+            booking.amount
+        )}`,
         right,
         y,
         {
@@ -406,7 +576,9 @@ export async function generateBookingReceipt(
 
     y += 7;
 
-    // Amount paid box
+    // =========================================================
+    // AMOUNT PAID BOX
+    // =========================================================
 
     doc.setFillColor(
         248,
@@ -430,6 +602,7 @@ export async function generateBookingReceipt(
     );
 
     doc.setFontSize(10);
+
     doc.setTextColor(
         45,
         30,
@@ -443,6 +616,7 @@ export async function generateBookingReceipt(
     );
 
     doc.setFontSize(12);
+
     doc.setTextColor(
         20,
         140,
@@ -450,7 +624,9 @@ export async function generateBookingReceipt(
     );
 
     doc.text(
-        `INR ${formatAmount(booking.amount)}`,
+        `INR ${formatAmount(
+            booking.amount
+        )}`,
         right - 5,
         y + 9,
         {
@@ -480,6 +656,7 @@ export async function generateBookingReceipt(
     );
 
     doc.setFontSize(7.5);
+
     doc.setTextColor(
         80,
         80,
@@ -526,6 +703,7 @@ export async function generateBookingReceipt(
     );
 
     doc.setFontSize(7.2);
+
     doc.setTextColor(
         90,
         90,
@@ -539,20 +717,28 @@ export async function generateBookingReceipt(
         "• Please retain this receipt for your records.",
     ];
 
-    terms.forEach((term) => {
+    terms.forEach(
+        (term) => {
 
-        doc.text(
-            term,
-            left,
-            y
-        );
+            doc.text(
+                term,
+                left,
+                y
+            );
 
-        y += 4.5;
-    });
+            y += 4.5;
+        }
+    );
 
     y += 4;
 
     drawLine();
+
+    // =========================================================
+    // BOOKMYSTAY APPROVED STAMP
+    // =========================================================
+
+    drawApprovalStamp();
 
     // =========================================================
     // FOOTER
@@ -564,6 +750,7 @@ export async function generateBookingReceipt(
     );
 
     doc.setFontSize(8);
+
     doc.setTextColor(
         45,
         30,
@@ -582,6 +769,7 @@ export async function generateBookingReceipt(
     );
 
     doc.setFontSize(7);
+
     doc.setTextColor(
         110,
         110,
@@ -589,7 +777,9 @@ export async function generateBookingReceipt(
     );
 
     doc.text(
-        `Generated on ${new Date().toLocaleDateString("en-IN")}`,
+        `Generated on ${new Date().toLocaleDateString(
+            "en-IN"
+        )}`,
         right,
         pageHeight - 14,
         {
@@ -610,6 +800,7 @@ export async function generateBookingReceipt(
     // =========================================================
 
     function drawLine() {
+
         doc.setDrawColor(
             150,
             150,
@@ -635,6 +826,7 @@ export async function generateBookingReceipt(
         x: number,
         yPosition: number
     ) {
+
         doc.setFont(
             "helvetica",
             "bold"
@@ -660,6 +852,7 @@ export async function generateBookingReceipt(
         x: number,
         yPosition: number
     ) {
+
         doc.setFont(
             "helvetica",
             "normal"
@@ -686,6 +879,7 @@ export async function generateBookingReceipt(
         yPosition: number,
         bold = false
     ) {
+
         doc.setFont(
             "helvetica",
             bold
@@ -707,22 +901,152 @@ export async function generateBookingReceipt(
             yPosition
         );
     }
+
+    // =========================================================
+    // APPROVAL STAMP
+    // =========================================================
+
+    function drawApprovalStamp() {
+
+        /*
+         * Position the stamp below the receipt content.
+         */
+        const stampX =
+            pageWidth / 2;
+
+        const stampY =
+            y + 8;
+
+        /*
+         * Outer circle
+         */
+        doc.setDrawColor(
+            20,
+            140,
+            70
+        );
+
+        doc.setLineWidth(
+            1.2
+        );
+
+        doc.circle(
+            stampX,
+            stampY,
+            18,
+            "S"
+        );
+
+        /*
+         * Inner circle
+         */
+        doc.setLineWidth(
+            0.5
+        );
+
+        doc.circle(
+            stampX,
+            stampY,
+            15.5,
+            "S"
+        );
+
+        /*
+         * APPROVED
+         */
+        doc.setFont(
+            "helvetica",
+            "bold"
+        );
+
+        doc.setFontSize(9);
+
+        doc.setTextColor(
+            20,
+            140,
+            70
+        );
+
+        doc.text(
+            "APPROVED",
+            stampX,
+            stampY - 2,
+            {
+                align: "center",
+            }
+        );
+
+        /*
+         * BOOKMYSTAY
+         */
+        doc.setFontSize(6.5);
+
+        doc.text(
+            "BOOKMYSTAY",
+            stampX,
+            stampY + 3,
+            {
+                align: "center",
+            }
+        );
+
+        /*
+         * Small check mark
+         */
+        doc.setFontSize(7);
+
+        doc.text(
+            "✓",
+            stampX,
+            stampY + 8,
+            {
+                align: "center",
+            }
+        );
+    }
 }
 
 // =============================================================
-// HELPERS
+// DATE FORMAT
 // =============================================================
 
 function formatDate(
     date: string
 ) {
+
     if (!date) {
         return "-";
     }
 
-    return new Date(
-        date
-    ).toLocaleDateString(
+    /*
+     * Parse the date safely without
+     * accidentally shifting it because
+     * of timezone conversion.
+     */
+    const parts =
+        date.split("-");
+
+    if (parts.length !== 3) {
+        return date;
+    }
+
+    const year =
+        Number(parts[0]);
+
+    const month =
+        Number(parts[1]) - 1;
+
+    const day =
+        Number(parts[2]);
+
+    const localDate =
+        new Date(
+            year,
+            month,
+            day
+        );
+
+    return localDate.toLocaleDateString(
         "en-IN",
         {
             day: "2-digit",
@@ -732,9 +1056,70 @@ function formatDate(
     );
 }
 
+// =============================================================
+// TIME FORMAT
+// =============================================================
+
+function formatTime(
+    time: string
+) {
+
+    if (!time) {
+        return "-";
+    }
+
+    /*
+     * Backend returns:
+     *
+     * 15:43:00
+     *
+     * Display:
+     *
+     * 03:43 PM
+     */
+    const parts =
+        time.split(":");
+
+    if (parts.length < 2) {
+        return time;
+    }
+
+    const hours =
+        Number(parts[0]);
+
+    const minutes =
+        Number(parts[1]);
+
+    if (
+        Number.isNaN(hours) ||
+        Number.isNaN(minutes)
+    ) {
+        return time;
+    }
+
+    const suffix =
+        hours >= 12
+            ? "PM"
+            : "AM";
+
+    const displayHour =
+        hours % 12 || 12;
+
+    return `${String(
+        displayHour
+    ).padStart(2, "0")}:${String(
+        minutes
+    ).padStart(2, "0")} ${suffix}`;
+}
+
+// =============================================================
+// AMOUNT FORMAT
+// =============================================================
+
 function formatAmount(
     amount: unknown
 ) {
+
     return Number(
         amount ?? 0
     ).toLocaleString(
