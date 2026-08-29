@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { Button } from "@/components/ui/button";
+
 import {
   Avatar,
   AvatarFallback,
@@ -43,15 +44,20 @@ export default function MainLayout({
     hasRole,
   } = useAuth();
 
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const [location] = useLocation();
+  const [scrolled, setScrolled] =
+    useState(false);
+
+  const [mobileMenuOpen, setMobileMenuOpen] =
+    useState(false);
+
+  const [location] =
+    useLocation();
 
 
-  // ==========================================
+  // =========================================================
   // SCROLL ANIMATION
-  // ==========================================
+  // =========================================================
 
   useEffect(() => {
 
@@ -74,65 +80,79 @@ export default function MainLayout({
   }, []);
 
 
-  // Close mobile menu on route change
+  // =========================================================
+  // CLOSE MOBILE MENU ON ROUTE CHANGE
+  // =========================================================
 
   useEffect(() => {
-
     setMobileMenuOpen(false);
-
   }, [location]);
 
 
-  // ==========================================
-  // NAVBAR STYLE
-  // ==========================================
+  // =========================================================
+  // NAVBAR
+  // =========================================================
 
-  const isHomePage = location === "/";
-
-  const navBg = scrolled || !isHomePage
-    ? `
-        bg-white/95
-        backdrop-blur-xl
-        shadow-warm
-        border-b
-        border-warm-stone/20
-      `
-    : `
-        bg-white/75
-        backdrop-blur-md
-        border-b
-        border-white/30
-      `;
+  const isHomePage =
+    location === "/";
 
 
-  // ==========================================
+  const navBg =
+    scrolled || !isHomePage
+      ? `
+          bg-white/95
+          backdrop-blur-xl
+          shadow-warm
+          border-b
+          border-warm-stone/20
+        `
+      : `
+          bg-white/75
+          backdrop-blur-md
+          border-b
+          border-white/30
+        `;
+
+
+  // =========================================================
   // NAV LINKS
-  // ==========================================
+  // =========================================================
 
   const navLinks = [
+
     {
       label: "Home",
       href: "/",
     },
+
     {
       label: "Explore",
       href: "/search",
     },
+
     {
       label: "About",
       href: "/about",
     },
+
     {
       label: "List Property",
       href: "/list-property",
     },
+
   ];
 
 
   return (
 
-    <div className="min-h-screen flex flex-col bg-cream">
-
+    <div
+      className="
+        flex
+        min-h-screen
+        flex-col
+        bg-cream
+      "
+    >
 
       {/* =====================================================
           NAVBAR
@@ -141,9 +161,9 @@ export default function MainLayout({
       <header
         className={`
           fixed
-          top-0
           left-0
           right-0
+          top-0
           z-50
           w-full
           transition-all
@@ -164,14 +184,17 @@ export default function MainLayout({
           "
         >
 
-
-          {/* =================================================
-              LOGO
-          ================================================= */}
+          {/* LOGO */}
 
           <Link href="/">
 
-            <div className="flex items-center gap-2">
+            <div
+              className="
+                flex
+                items-center
+                gap-2
+              "
+            >
 
               <Compass
                 className="
@@ -204,7 +227,7 @@ export default function MainLayout({
 
           {/* =================================================
               DESKTOP NAVIGATION
-          ================================================= */}
+          ================================================== */}
 
           <nav
             className="
@@ -231,7 +254,6 @@ export default function MainLayout({
                     transition-all
                     duration-300
                     hover:text-bronze
-
                     ${
                       location === link.href
                         ? "text-bronze"
@@ -251,7 +273,7 @@ export default function MainLayout({
 
           {/* =================================================
               AUTH SECTION
-          ================================================= */}
+          ================================================== */}
 
           <div
             className="
@@ -266,7 +288,9 @@ export default function MainLayout({
 
               <DropdownMenu>
 
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger
+                  asChild
+                >
 
                   <button
                     className="
@@ -299,7 +323,8 @@ export default function MainLayout({
                       >
                         {user?.name
                           ?.charAt(0)
-                          ?.toUpperCase() || "U"}
+                          ?.toUpperCase() ||
+                          "U"}
                       </AvatarFallback>
 
                     </Avatar>
@@ -310,11 +335,10 @@ export default function MainLayout({
                         text-sm
                         font-medium
                         text-espresso
-                        transition-colors
-                        duration-300
                       "
                     >
-                      {user?.name || "Guest"}
+                      {user?.name ||
+                        "Guest"}
                     </span>
 
 
@@ -323,8 +347,6 @@ export default function MainLayout({
                         h-4
                         w-4
                         text-espresso
-                        transition-transform
-                        duration-300
                       "
                     />
 
@@ -346,7 +368,11 @@ export default function MainLayout({
                   "
                 >
 
-                  <DropdownMenuItem asChild>
+                  {/* My Bookings */}
+
+                  <DropdownMenuItem
+                    asChild
+                  >
 
                     <Link
                       href="/my-bookings"
@@ -361,7 +387,9 @@ export default function MainLayout({
                       "
                     >
 
-                      <Search className="h-4 w-4" />
+                      <Search
+                        className="h-4 w-4"
+                      />
 
                       My Bookings
 
@@ -370,7 +398,11 @@ export default function MainLayout({
                   </DropdownMenuItem>
 
 
-                  <DropdownMenuItem asChild>
+                  {/* Owner Dashboard */}
+
+                  <DropdownMenuItem
+                    asChild
+                  >
 
                     <Link
                       href="/owner"
@@ -396,9 +428,13 @@ export default function MainLayout({
                   </DropdownMenuItem>
 
 
+                  {/* Admin */}
+
                   {hasRole("ROLE_ADMIN") && (
 
-                    <DropdownMenuItem asChild>
+                    <DropdownMenuItem
+                      asChild
+                    >
 
                       <Link
                         href="/admin"
@@ -432,6 +468,8 @@ export default function MainLayout({
                     "
                   />
 
+
+                  {/* Logout */}
 
                   <DropdownMenuItem
                     onClick={logout}
@@ -511,7 +549,7 @@ export default function MainLayout({
 
           {/* =================================================
               MOBILE MENU BUTTON
-          ================================================= */}
+          ================================================== */}
 
           <button
             className="
@@ -530,13 +568,9 @@ export default function MainLayout({
           >
 
             {mobileMenuOpen ? (
-
               <X className="h-6 w-6" />
-
             ) : (
-
               <Menu className="h-6 w-6" />
-
             )}
 
           </button>
@@ -588,7 +622,6 @@ export default function MainLayout({
                       font-medium
                       transition-colors
                       hover:text-bronze
-
                       ${
                         location === link.href
                           ? "text-bronze"
@@ -617,7 +650,9 @@ export default function MainLayout({
 
                 <>
 
-                  <Link href="/my-bookings">
+                  <Link
+                    href="/my-bookings"
+                  >
 
                     <span
                       className="
@@ -634,7 +669,9 @@ export default function MainLayout({
                   </Link>
 
 
-                  <Link href="/owner">
+                  <Link
+                    href="/owner"
+                  >
 
                     <span
                       className="
@@ -653,7 +690,9 @@ export default function MainLayout({
 
                   {hasRole("ROLE_ADMIN") && (
 
-                    <Link href="/admin">
+                    <Link
+                      href="/admin"
+                    >
 
                       <span
                         className="
@@ -691,7 +730,9 @@ export default function MainLayout({
 
                 <>
 
-                  <Link href="/login">
+                  <Link
+                    href="/login"
+                  >
 
                     <span
                       className="
@@ -708,7 +749,9 @@ export default function MainLayout({
                   </Link>
 
 
-                  <Link href="/register">
+                  <Link
+                    href="/register"
+                  >
 
                     <Button
                       className="
@@ -779,9 +822,9 @@ export default function MainLayout({
             "
           >
 
-            {/* Brand */}
+            {/* BRAND */}
 
-            <div className="md:col-span-1">
+            <div>
 
               <div
                 className="
@@ -813,6 +856,7 @@ export default function MainLayout({
 
               </div>
 
+
               <p
                 className="
                   text-sm
@@ -829,7 +873,7 @@ export default function MainLayout({
             </div>
 
 
-            {/* Explore */}
+            {/* EXPLORE */}
 
             <div>
 
@@ -846,42 +890,102 @@ export default function MainLayout({
                 Explore
               </h4>
 
+
               <ul className="space-y-2">
 
-                {[
-                  "Popular Destinations",
-                  "Luxury Hotels",
-                  "Mountain Retreats",
-                  "Beach Resorts",
-                ].map((item) => (
+                <li>
 
-                  <li key={item}>
+                  <Link href="/search">
 
-                    <Link href="/search">
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      Popular Destinations
+                    </span>
 
-                      <span
-                        className="
-                          text-sm
-                          text-white/60
-                          transition-colors
-                          hover:text-bronze
-                        "
-                      >
-                        {item}
-                      </span>
+                  </Link>
 
-                    </Link>
+                </li>
 
-                  </li>
 
-                ))}
+                <li>
+
+                  <Link href="/search">
+
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      Luxury Hotels
+                    </span>
+
+                  </Link>
+
+                </li>
+
+
+                <li>
+
+                  <Link
+                    href="/search?keyword=mountain"
+                  >
+
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      Mountain Retreats
+                    </span>
+
+                  </Link>
+
+                </li>
+
+
+                <li>
+
+                  <Link
+                    href="/search?keyword=beach"
+                  >
+
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      Beach Resorts
+                    </span>
+
+                  </Link>
+
+                </li>
 
               </ul>
 
             </div>
 
 
-            {/* Company */}
+            {/* COMPANY */}
 
             <div>
 
@@ -898,54 +1002,56 @@ export default function MainLayout({
                 Company
               </h4>
 
+
               <ul className="space-y-2">
 
-                {[
-                  {
-                    label: "About Us",
-                    href: "/about",
-                  },
-                  {
-                    label: "Careers",
-                    href: "/contact",
-                  },
-                  {
-                    label: "Press",
-                    href: "/contact",
-                  },
-                  {
-                    label: "List Property",
-                    href: "/list-property",
-                  },
-                ].map((item) => (
+                <li>
 
-                  <li key={item.label}>
+                  <Link href="/about">
 
-                    <Link href={item.href}>
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      About Us
+                    </span>
 
-                      <span
-                        className="
-                          text-sm
-                          text-white/60
-                          transition-colors
-                          hover:text-bronze
-                        "
-                      >
-                        {item.label}
-                      </span>
+                  </Link>
 
-                    </Link>
+                </li>
 
-                  </li>
 
-                ))}
+                <li>
+
+                  <Link href="/list-property">
+
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      List Property
+                    </span>
+
+                  </Link>
+
+                </li>
 
               </ul>
 
             </div>
 
 
-            {/* Support */}
+            {/* SUPPORT */}
 
             <div>
 
@@ -962,47 +1068,95 @@ export default function MainLayout({
                 Support
               </h4>
 
+
               <ul className="space-y-2">
 
-                {[
-                  {
-                    label: "Help Center",
-                    href: "/contact",
-                  },
-                  {
-                    label: "Contact Us",
-                    href: "/contact",
-                  },
-                  {
-                    label: "Terms of Service",
-                    href: "/terms",
-                  },
-                  {
-                    label: "Privacy Policy",
-                    href: "/privacy",
-                  },
-                ].map((item) => (
+                {/* IMPORTANT:
+                    This must be /help, NOT /contact.
+                */}
 
-                  <li key={item.label}>
+                <li>
 
-                    <Link href={item.href}>
+                  <Link href="/help">
 
-                      <span
-                        className="
-                          text-sm
-                          text-white/60
-                          transition-colors
-                          hover:text-bronze
-                        "
-                      >
-                        {item.label}
-                      </span>
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      Help Center
+                    </span>
 
-                    </Link>
+                  </Link>
 
-                  </li>
+                </li>
 
-                ))}
+
+                <li>
+
+                  <Link href="/contact">
+
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      Contact Us
+                    </span>
+
+                  </Link>
+
+                </li>
+
+
+                <li>
+
+                  <Link href="/terms">
+
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      Terms of Service
+                    </span>
+
+                  </Link>
+
+                </li>
+
+
+                <li>
+
+                  <Link href="/privacy">
+
+                    <span
+                      className="
+                        cursor-pointer
+                        text-sm
+                        text-white/60
+                        transition-colors
+                        hover:text-bronze
+                      "
+                    >
+                      Privacy Policy
+                    </span>
+
+                  </Link>
+
+                </li>
 
               </ul>
 
@@ -1011,7 +1165,9 @@ export default function MainLayout({
           </div>
 
 
-          {/* Footer bottom */}
+          {/* =================================================
+              FOOTER BOTTOM
+          ================================================== */}
 
           <div
             className="
@@ -1040,28 +1196,50 @@ export default function MainLayout({
             </p>
 
 
-            <div className="flex gap-6">
+            <div
+              className="
+                flex
+                gap-6
+              "
+            >
 
-              {[
-                "Instagram",
-                "Twitter",
-                "Facebook",
-              ].map((social) => (
+              <span
+                className="
+                  cursor-pointer
+                  text-xs
+                  text-white/40
+                  transition-colors
+                  hover:text-bronze
+                "
+              >
+                Instagram
+              </span>
 
-                <span
-                  key={social}
-                  className="
-                    cursor-pointer
-                    text-xs
-                    text-white/40
-                    transition-colors
-                    hover:text-bronze
-                  "
-                >
-                  {social}
-                </span>
 
-              ))}
+              <span
+                className="
+                  cursor-pointer
+                  text-xs
+                  text-white/40
+                  transition-colors
+                  hover:text-bronze
+                "
+              >
+                Twitter
+              </span>
+
+
+              <span
+                className="
+                  cursor-pointer
+                  text-xs
+                  text-white/40
+                  transition-colors
+                  hover:text-bronze
+                "
+              >
+                Facebook
+              </span>
 
             </div>
 
@@ -1072,5 +1250,6 @@ export default function MainLayout({
       </footer>
 
     </div>
+
   );
 }

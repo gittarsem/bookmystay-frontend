@@ -1,353 +1,1721 @@
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+
 import {
   Star,
   Shield,
   Heart,
-  Award,
   Globe,
   Headphones,
   Sparkles,
   ArrowRight,
   Quote,
 } from "lucide-react";
+
 import MainLayout from "@/layouts/MainLayout";
 import SearchWidget from "@/components/SearchWidget";
 import HotelCard from "@/components/HotelCard";
+
 import { POPULAR_DESTINATIONS } from "@/lib/mockData";
+
 import { hotelsApi } from "@/api";
+import { reviewsApi } from "@/api/reviews";
+
 import { mapHotels } from "@/mappers/hotelMapper";
-import { useEffect, useState } from "react";
+
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import type { Hotel } from "@/types";
+import type { ReviewResponse } from "@/api/reviews";
+
+
+/* =========================================================
+   ANIMATION
+   ========================================================= */
 
 const fadeInUp = {
-  initial: { opacity: 0, y: 30 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition: { duration: 0.6 },
+
+  initial: {
+    opacity: 0,
+    y: 30,
+  },
+
+  whileInView: {
+    opacity: 1,
+    y: 0,
+  },
+
+  viewport: {
+    once: true,
+  },
+
+  transition: {
+    duration: 0.6,
+  },
+
 };
 
-const stagger = {
-  initial: { opacity: 0 },
-  whileInView: { opacity: 1 },
-  viewport: { once: true },
-  transition: { staggerChildren: 0.1 },
-};
+
+/* =========================================================
+   HERO BACKGROUND IMAGES
+   ========================================================= */
+
+const HERO_IMAGES = [
+
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=2000&q=85",
+
+  "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=2000&q=85",
+
+  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=2000&q=85",
+
+  "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=2000&q=85",
+
+];
+
+
+/* =========================================================
+   TYPES
+   ========================================================= */
+
+interface DestinationHotelCount {
+
+  [city: string]: number;
+
+}
+
+
+/* =========================================================
+   COMPONENT
+   ========================================================= */
 
 export default function Home() {
 
-  const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [loadingHotels, setLoadingHotels] = useState(true);
+
+  /* =======================================================
+     HERO BACKGROUND
+     ======================================================= */
+
+  const [heroImageIndex, setHeroImageIndex] =
+    useState(0);
+
+
+  /* =======================================================
+     HOTELS
+     ======================================================= */
+
+  const [hotels, setHotels] =
+    useState<Hotel[]>([]);
+
+  const [loadingHotels, setLoadingHotels] =
+    useState(true);
+
+
+  /* =======================================================
+     DESTINATION HOTEL COUNTS
+     ======================================================= */
+
+  const [hotelCounts, setHotelCounts] =
+    useState<DestinationHotelCount>({});
+
+  const [
+    loadingDestinationCounts,
+    setLoadingDestinationCounts,
+  ] = useState(true);
+
+
+  /* =======================================================
+     REVIEWS
+     ======================================================= */
+
+  const [reviews, setReviews] =
+    useState<ReviewResponse[]>([]);
+
+  const [loadingReviews, setLoadingReviews] =
+    useState(true);
+
+
+  /* =======================================================
+     HERO BACKGROUND ANIMATION
+     ======================================================= */
 
   useEffect(() => {
-    const fetchHotels = async () => {
-      try {
-        const response = await hotelsApi.search({
-          page: 0,
-          size: 6,
-        });
 
-        const mappedHotels = mapHotels(response.data.hotels);
+    const interval =
+      window.setInterval(() => {
 
-        setHotels(mappedHotels);
-      } catch (error) {
-        console.error("Failed to fetch hotels", error);
-      } finally {
-        setLoadingHotels(false);
-      }
+        setHeroImageIndex(
+          (current) =>
+            (current + 1) %
+            HERO_IMAGES.length
+        );
+
+      }, 6000);
+
+
+    return () => {
+
+      window.clearInterval(
+        interval
+      );
+
     };
 
-    fetchHotels();
   }, []);
+
+
+  /* =======================================================
+     FETCH FEATURED HOTELS
+     ======================================================= */
+
+  useEffect(() => {
+
+    const fetchHotels = async () => {
+
+      try {
+
+        const response =
+          await hotelsApi.search({
+            page: 0,
+            size: 6,
+          });
+
+
+        const mappedHotels =
+          mapHotels(
+            response.data.hotels
+          );
+
+
+        setHotels(
+          mappedHotels
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Failed to fetch hotels",
+          error
+        );
+
+      } finally {
+
+        setLoadingHotels(
+          false
+        );
+
+      }
+
+    };
+
+
+    fetchHotels();
+
+  }, []);
+
+
+  /* =======================================================
+     FETCH HOTEL COUNTS FOR DESTINATIONS
+     ======================================================= */
+
+  useEffect(() => {
+
+    const fetchDestinationCounts =
+      async () => {
+
+        try {
+
+          setLoadingDestinationCounts(
+            true
+          );
+
+
+          const results =
+            await Promise.all(
+
+              POPULAR_DESTINATIONS.map(
+                async (
+                  destination
+                ) => {
+
+                  try {
+
+                    const response =
+                      await hotelsApi.search({
+                        city:
+                          destination.name,
+                        page: 0,
+                        size: 1,
+                      });
+
+
+                    return {
+
+                      city:
+                        destination.name,
+
+                      count:
+                        response.data.total ??
+                        0,
+
+                    };
+
+                  } catch (error) {
+
+                    console.error(
+                      `Failed to fetch hotel count for ${destination.name}`,
+                      error
+                    );
+
+
+                    return {
+
+                      city:
+                        destination.name,
+
+                      count:
+                        0,
+
+                    };
+
+                  }
+
+                }
+              )
+
+            );
+
+
+          const counts:
+            DestinationHotelCount = {};
+
+
+          results.forEach(
+            (result) => {
+
+              counts[
+                result.city
+              ] = result.count;
+
+            }
+          );
+
+
+          setHotelCounts(
+            counts
+          );
+
+        } catch (error) {
+
+          console.error(
+            "Failed to fetch destination hotel counts",
+            error
+          );
+
+        } finally {
+
+          setLoadingDestinationCounts(
+            false
+          );
+
+        }
+
+      };
+
+
+    fetchDestinationCounts();
+
+  }, []);
+
+
+  /* =======================================================
+     FETCH REAL REVIEWS
+     ======================================================= */
+
+  useEffect(() => {
+
+    const fetchReviews =
+      async () => {
+
+        try {
+
+          setLoadingReviews(
+            true
+          );
+
+
+          if (
+            hotels.length ===
+            0
+          ) {
+
+            setReviews([]);
+
+            return;
+
+          }
+
+
+          const responses =
+            await Promise.all(
+
+              hotels
+                .slice(0, 6)
+                .map(
+                  async (
+                    hotel
+                  ) => {
+
+                    try {
+
+                      const response =
+                        await reviewsApi.getHotelReviews(
+                          Number(
+                            hotel.id
+                          ),
+                          0,
+                          5
+                        );
+
+
+                      return (
+                        response.data
+                          ?.content ??
+                        []
+                      );
+
+                    } catch (
+                      error
+                    ) {
+
+                      console.error(
+                        `Failed to fetch reviews for hotel ${hotel.id}`,
+                        error
+                      );
+
+
+                      return [];
+
+                    }
+
+                  }
+                )
+
+            );
+
+
+          const allReviews =
+            responses.flat();
+
+
+          // Show only 3 real reviews
+          // on homepage.
+
+          setReviews(
+            allReviews.slice(
+              0,
+              3
+            )
+          );
+
+        } catch (error) {
+
+          console.error(
+            "Failed to fetch reviews",
+            error
+          );
+
+
+          setReviews([]);
+
+        } finally {
+
+          setLoadingReviews(
+            false
+          );
+
+        }
+
+      };
+
+
+    fetchReviews();
+
+  }, [hotels]);
+
+
   return (
+
     <MainLayout>
-      {/* Hero Section */}
-      <section className="relative h-[85vh] min-h-[600px] overflow-hidden">
-        <img
-          src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1600&q=80"
-          alt="Luxury resort"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60" />
-        <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-8"
+
+      {/* ===================================================
+          HERO
+          =================================================== */}
+
+      <section
+        className="
+          relative
+          min-h-[860px]
+          overflow-hidden
+          lg:min-h-[900px]
+        "
+      >
+
+        {/* =================================================
+            ANIMATED BACKGROUND
+        ================================================= */}
+
+        <div
+          className="
+            absolute
+            inset-0
+            overflow-hidden
+          "
+        >
+
+          <AnimatePresence
+            mode="sync"
           >
-            <p className="text-white/80 text-sm uppercase tracking-[0.3em] mb-3 font-medium">
+
+            <motion.img
+              key={
+                HERO_IMAGES[
+                  heroImageIndex
+                ]
+              }
+              src={
+                HERO_IMAGES[
+                  heroImageIndex
+                ]
+              }
+              alt="Luxury resort"
+              initial={{
+                opacity: 0,
+                scale: 1.08,
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+              }}
+              exit={{
+                opacity: 0,
+                scale: 1.03,
+              }}
+              transition={{
+                opacity: {
+                  duration: 1.5,
+                  ease: "easeInOut",
+                },
+                scale: {
+                  duration: 7,
+                  ease: "easeOut",
+                },
+              }}
+              className="
+                absolute
+                inset-0
+                h-full
+                w-full
+                object-cover
+              "
+            />
+
+          </AnimatePresence>
+
+        </div>
+
+
+        {/* =================================================
+            DARK OVERLAY
+        ================================================= */}
+
+        <div
+          className="
+            absolute
+            inset-0
+            bg-black/40
+          "
+        />
+
+
+        {/* =================================================
+            GRADIENT OVERLAY
+        ================================================= */}
+
+        <div
+          className="
+            absolute
+            inset-0
+            bg-gradient-to-b
+            from-black/50
+            via-black/25
+            to-black/70
+          "
+        />
+
+
+        {/* =================================================
+            HERO CONTENT
+        ================================================= */}
+
+        <div
+          className="
+            relative
+            z-10
+            mx-auto
+            flex
+            min-h-[860px]
+            max-w-7xl
+            flex-col
+            items-center
+            px-4
+            pt-20
+            lg:min-h-[900px]
+            lg:pt-24
+          "
+        >
+
+          {/* =================================================
+              HERO TEXT
+          ================================================= */}
+
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: -20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              duration: 0.8,
+            }}
+            className="
+              w-full
+              text-center
+            "
+          >
+
+            <p
+              className="
+                mb-3
+                text-sm
+                font-medium
+                uppercase
+                tracking-[0.3em]
+                text-white/80
+              "
+            >
               Curated Luxury Stays
             </p>
-            <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
+
+
+            <h1
+              className="
+                font-serif
+                text-4xl
+                font-bold
+                leading-tight
+                text-white
+                md:text-6xl
+                lg:text-7xl
+              "
+            >
+
               Your Next Extraordinary
+
               <br />
-              <span className="italic text-bronze">Stay Awaits</span>
+
+              <span
+                className="
+                  italic
+                  text-bronze
+                "
+              >
+                Stay Awaits
+              </span>
+
             </h1>
-            <p className="mt-4 text-white/70 text-lg max-w-lg mx-auto">
-              Discover handpicked luxury accommodations around the world, where every
-              detail has been curated for your comfort.
+
+
+            <p
+              className="
+                mx-auto
+                mt-4
+                max-w-lg
+                text-lg
+                leading-relaxed
+                text-white/75
+              "
+            >
+              Discover handpicked luxury accommodations
+              around the world, where every detail has
+              been curated for your comfort.
             </p>
+
           </motion.div>
 
-          {/* Floating Search Widget */}
-          <div className="absolute bottom-12 md:bottom-16 left-0 right-0 px-4">
+
+          {/* =================================================
+              SEARCH AREA
+
+              Kept in normal layout flow instead of
+              absolute positioning so it cannot overlap
+              the hero heading.
+          ================================================= */}
+
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 30,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              duration: 0.8,
+              delay: 0.25,
+            }}
+            className="
+              mt-14
+              w-full
+              max-w-6xl
+              lg:mt-16
+            "
+          >
+
             <SearchWidget />
-          </div>
+
+          </motion.div>
+
         </div>
+
       </section>
 
-      {/* Featured Hotels */}
-      <section className="py-20 px-4" id="featured">
+
+      {/* ===================================================
+          FEATURED HOTELS
+          =================================================== */}
+
+      <section
+        className="
+          px-4
+          py-20
+        "
+        id="featured"
+      >
+
         <div className="container">
-          <motion.div {...fadeInUp} className="text-center mb-12">
-            <p className="text-xs uppercase tracking-[0.25em] text-bronze font-medium mb-2">
+
+          <motion.div
+            {...fadeInUp}
+            className="
+              mb-12
+              text-center
+            "
+          >
+
+            <p
+              className="
+                mb-2
+                text-xs
+                font-medium
+                uppercase
+                tracking-[0.25em]
+                text-bronze
+              "
+            >
               Handpicked For You
             </p>
-            <h2 className="font-serif text-3xl md:text-4xl font-bold text-espresso">
+
+
+            <h2
+              className="
+                font-serif
+                text-3xl
+                font-bold
+                text-espresso
+                md:text-4xl
+              "
+            >
               Featured Stays
             </h2>
-            <div className="w-16 h-0.5 bg-bronze mx-auto mt-4" />
+
+
+            <div
+              className="
+                mx-auto
+                mt-4
+                h-0.5
+                w-16
+                bg-bronze
+              "
+            />
+
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          <div
+            className="
+              grid
+              grid-cols-1
+              gap-6
+              md:grid-cols-2
+              lg:grid-cols-3
+            "
+          >
+
             {loadingHotels ? (
-              <div className="col-span-full flex justify-center py-12">
+
+              <div
+                className="
+                  col-span-full
+                  flex
+                  justify-center
+                  py-12
+                "
+              >
                 Loading hotels...
               </div>
+
+            ) : hotels.length === 0 ? (
+
+              <div
+                className="
+                  col-span-full
+                  py-12
+                  text-center
+                  text-muted-foreground
+                "
+              >
+                No hotels available.
+              </div>
+
             ) : (
-              hotels.map((hotel, index) => (
-                <HotelCard
-                  key={hotel.id}
-                  hotel={hotel}
-                  index={index}
-                />
-              ))
+
+              hotels.map(
+                (
+                  hotel,
+                  index
+                ) => (
+
+                  <HotelCard
+                    key={
+                      hotel.id
+                    }
+                    hotel={
+                      hotel
+                    }
+                    index={
+                      index
+                    }
+                  />
+
+                )
+              )
+
             )}
+
           </div>
+
 
           <motion.div
             {...fadeInUp}
-            className="text-center mt-10"
+            className="
+              mt-10
+              text-center
+            "
           >
-            <Link href="/search">
-              <button className="inline-flex items-center gap-2 text-bronze font-medium hover:text-bronze-dark transition-colors group">
+
+            <Link
+              href="/search"
+            >
+
+              <button
+                className="
+                  group
+                  inline-flex
+                  items-center
+                  gap-2
+                  font-medium
+                  text-bronze
+                  transition-colors
+                  hover:text-bronze-dark
+                "
+              >
+
                 View All Properties
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+
+                <ArrowRight
+                  className="
+                    h-4
+                    w-4
+                    transition-transform
+                    group-hover:translate-x-1
+                  "
+                />
+
               </button>
+
             </Link>
+
           </motion.div>
+
         </div>
+
       </section>
 
-      {/* Popular Destinations */}
-      <section className="py-20 bg-white">
+
+      {/* ===================================================
+          POPULAR DESTINATIONS
+          =================================================== */}
+
+      <section
+        className="
+          bg-white
+          py-20
+        "
+      >
+
         <div className="container">
-          <motion.div {...fadeInUp} className="text-center mb-12">
-            <p className="text-xs uppercase tracking-[0.25em] text-bronze font-medium mb-2">
+
+          <motion.div
+            {...fadeInUp}
+            className="
+              mb-12
+              text-center
+            "
+          >
+
+            <p
+              className="
+                mb-2
+                text-xs
+                font-medium
+                uppercase
+                tracking-[0.25em]
+                text-bronze
+              "
+            >
               Explore India
             </p>
-            <h2 className="font-serif text-3xl md:text-4xl font-bold text-espresso">
+
+
+            <h2
+              className="
+                font-serif
+                text-3xl
+                font-bold
+                text-espresso
+                md:text-4xl
+              "
+            >
               Popular Destinations
             </h2>
-            <div className="w-16 h-0.5 bg-bronze mx-auto mt-4" />
+
+
+            <div
+              className="
+                mx-auto
+                mt-4
+                h-0.5
+                w-16
+                bg-bronze
+              "
+            />
+
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {POPULAR_DESTINATIONS.map((dest, index) => (
-              <motion.div
-                key={dest.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.08 }}
-              >
-                <Link href={`/search?city=${dest.name}`}>
-                  <div className="group relative rounded-xl overflow-hidden aspect-[3/4] cursor-pointer">
-                    <img
-                      src={dest.image}
-                      alt={dest.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <h3 className="text-white font-serif font-semibold text-lg">
-                        {dest.name}
-                      </h3>
-                      <p className="text-white/70 text-xs mt-0.5">{dest.tagline}</p>
-                      <p className="text-bronze text-xs font-medium mt-1">
-                        {dest.hotelCount} stays
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+
+          <div
+            className="
+              grid
+              grid-cols-2
+              gap-4
+              md:grid-cols-3
+              lg:grid-cols-6
+            "
+          >
+
+            {POPULAR_DESTINATIONS.map(
+              (
+                dest,
+                index
+              ) => {
+
+                const hotelCount =
+                  hotelCounts[
+                    dest.name
+                  ] ?? 0;
+
+
+                return (
+
+                  <motion.div
+                    key={
+                      dest.name
+                    }
+                    initial={{
+                      opacity: 0,
+                      y: 20,
+                    }}
+                    whileInView={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    viewport={{
+                      once: true,
+                    }}
+                    transition={{
+                      duration: 0.4,
+                      delay:
+                        index *
+                        0.08,
+                    }}
+                  >
+
+                    <Link
+                      href={`/search?city=${encodeURIComponent(
+                        dest.name
+                      )}`}
+                    >
+
+                      <div
+                        className="
+                          group
+                          relative
+                          aspect-[3/4]
+                          cursor-pointer
+                          overflow-hidden
+                          rounded-xl
+                        "
+                      >
+
+                        <img
+                          src={
+                            dest.image
+                          }
+                          alt={
+                            dest.name
+                          }
+                          className="
+                            h-full
+                            w-full
+                            object-cover
+                            transition-transform
+                            duration-500
+                            group-hover:scale-110
+                          "
+                        />
+
+
+                        <div
+                          className="
+                            absolute
+                            inset-0
+                            bg-gradient-to-t
+                            from-black/70
+                            via-black/20
+                            to-transparent
+                          "
+                        />
+
+
+                        <div
+                          className="
+                            absolute
+                            bottom-0
+                            left-0
+                            right-0
+                            p-4
+                          "
+                        >
+
+                          <h3
+                            className="
+                              font-serif
+                              text-lg
+                              font-semibold
+                              text-white
+                            "
+                          >
+                            {
+                              dest.name
+                            }
+                          </h3>
+
+
+                          <p
+                            className="
+                              mt-0.5
+                              text-xs
+                              text-white/70
+                            "
+                          >
+                            {
+                              dest.tagline
+                            }
+                          </p>
+
+
+                          <p
+                            className="
+                              mt-1
+                              text-xs
+                              font-medium
+                              text-bronze
+                            "
+                          >
+
+                            {loadingDestinationCounts
+                              ? "Loading..."
+                              : `${hotelCount} ${
+                                  hotelCount ===
+                                  1
+                                    ? "stay"
+                                    : "stays"
+                                }`}
+
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </Link>
+
+                  </motion.div>
+
+                );
+
+              }
+            )}
+
           </div>
+
         </div>
+
       </section>
 
-      {/* Why Choose Us */}
-      <section className="py-20" id="why-us">
+
+      {/* ===================================================
+          WHY CHOOSE US
+          =================================================== */}
+
+      <section
+        className="
+          py-20
+        "
+        id="why-us"
+      >
+
         <div className="container">
-          <motion.div {...fadeInUp} className="text-center mb-14">
-            <p className="text-xs uppercase tracking-[0.25em] text-bronze font-medium mb-2">
-              The BookMyStay Difference
-            </p>
-            <h2 className="font-serif text-3xl md:text-4xl font-bold text-espresso">
-              Why Travelers Choose Us
-            </h2>
-            <div className="w-16 h-0.5 bg-bronze mx-auto mt-4" />
-          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                icon: Shield,
-                title: "Verified Luxury",
-                desc: "Every property is personally vetted to ensure it meets our exacting standards of quality and service.",
-              },
-              {
-                icon: Heart,
-                title: "Curated Experiences",
-                desc: "We don't just book rooms — we craft journeys with carefully selected stays that tell a story.",
-              },
-              {
-                icon: Globe,
-                title: "Global Coverage",
-                desc: "From Himalayan retreats to coastal paradises, discover exceptional stays across India and beyond.",
-              },
-              {
-                icon: Headphones,
-                title: "24/7 Concierge",
-                desc: "Our dedicated concierge team is available around the clock to ensure your stay is flawless.",
-              },
-            ].map((item, index) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="text-center"
-              >
-                <div className="w-14 h-14 bg-bronze/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <item.icon className="w-6 h-6 text-bronze" />
-                </div>
-                <h3 className="font-serif text-lg font-semibold text-espresso mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {item.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-20 bg-white">
-        <div className="container">
-          <motion.div {...fadeInUp} className="text-center mb-14">
-            <p className="text-xs uppercase tracking-[0.25em] text-bronze font-medium mb-2">
-              Guest Stories
-            </p>
-            <h2 className="font-serif text-3xl md:text-4xl font-bold text-espresso">
-              What Our Guests Say
-            </h2>
-            <div className="w-16 h-0.5 bg-bronze mx-auto mt-4" />
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Priya Sharma",
-                role: "Travel Blogger",
-                text: "BookMyStay made our honeymoon absolutely magical. The Udaipur palace hotel was beyond our wildest dreams. The booking process was seamless.",
-                rating: 5,
-              },
-              {
-                name: "Arjun Mehta",
-                role: "Business Executive",
-                text: "As someone who travels constantly for work, I appreciate the curation. Every hotel they recommend has been exceptional. The concierge service is outstanding.",
-                rating: 5,
-              },
-              {
-                name: "Neha Kapoor",
-                role: "Family Traveler",
-                text: "Found the perfect family-friendly luxury resort in Goa. The kids loved it as much as we did. Already planning our next trip through BookMyStay.",
-                rating: 5,
-              },
-            ].map((testimonial, index) => (
-              <motion.div
-                key={testimonial.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-cream rounded-2xl p-8 relative"
-              >
-                <Quote className="w-8 h-8 text-bronze/20 absolute top-6 right-6" />
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: testimonial.rating }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-bronze text-bronze" />
-                  ))}
-                </div>
-                <p className="text-espresso/80 leading-relaxed italic mb-6">
-                  "{testimonial.text}"
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-bronze/10 flex items-center justify-center">
-                    <span className="text-bronze font-semibold text-sm">
-                      {testimonial.name.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-espresso text-sm">
-                      {testimonial.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{testimonial.role}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20">
-        <div className="container">
           <motion.div
             {...fadeInUp}
-            className="relative rounded-3xl overflow-hidden bg-espresso text-center py-16 px-8"
+            className="
+              mb-14
+              text-center
+            "
           >
-            <div className="absolute inset-0 opacity-20">
+
+            <p
+              className="
+                mb-2
+                text-xs
+                font-medium
+                uppercase
+                tracking-[0.25em]
+                text-bronze
+              "
+            >
+              The BookMyStay Difference
+            </p>
+
+
+            <h2
+              className="
+                font-serif
+                text-3xl
+                font-bold
+                text-espresso
+                md:text-4xl
+              "
+            >
+              Why Travelers Choose Us
+            </h2>
+
+
+            <div
+              className="
+                mx-auto
+                mt-4
+                h-0.5
+                w-16
+                bg-bronze
+              "
+            />
+
+          </motion.div>
+
+
+          <div
+            className="
+              grid
+              grid-cols-1
+              gap-8
+              md:grid-cols-2
+              lg:grid-cols-4
+            "
+          >
+
+            {[
+              {
+                icon:
+                  Shield,
+                title:
+                  "Verified Luxury",
+                desc:
+                  "Every property is personally vetted to ensure it meets our exacting standards of quality and service.",
+              },
+
+              {
+                icon:
+                  Heart,
+                title:
+                  "Curated Experiences",
+                desc:
+                  "We don't just book rooms — we craft journeys with carefully selected stays that tell a story.",
+              },
+
+              {
+                icon:
+                  Globe,
+                title:
+                  "Global Coverage",
+                desc:
+                  "From Himalayan retreats to coastal paradises, discover exceptional stays across India and beyond.",
+              },
+
+              {
+                icon:
+                  Headphones,
+                title:
+                  "24/7 Concierge",
+                desc:
+                  "Our dedicated concierge team is available around the clock to ensure your stay is flawless.",
+              },
+
+            ].map(
+              (
+                item,
+                index
+              ) => {
+
+                const Icon =
+                  item.icon;
+
+
+                return (
+
+                  <motion.div
+                    key={
+                      item.title
+                    }
+                    initial={{
+                      opacity: 0,
+                      y: 20,
+                    }}
+                    whileInView={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    viewport={{
+                      once: true,
+                    }}
+                    transition={{
+                      duration: 0.5,
+                      delay:
+                        index *
+                        0.1,
+                    }}
+                    className="
+                      text-center
+                    "
+                  >
+
+                    <div
+                      className="
+                        mx-auto
+                        mb-4
+                        flex
+                        h-14
+                        w-14
+                        items-center
+                        justify-center
+                        rounded-2xl
+                        bg-bronze/10
+                      "
+                    >
+
+                      <Icon
+                        className="
+                          h-6
+                          w-6
+                          text-bronze
+                        "
+                      />
+
+                    </div>
+
+
+                    <h3
+                      className="
+                        mb-2
+                        font-serif
+                        text-lg
+                        font-semibold
+                        text-espresso
+                      "
+                    >
+                      {
+                        item.title
+                      }
+                    </h3>
+
+
+                    <p
+                      className="
+                        text-sm
+                        leading-relaxed
+                        text-muted-foreground
+                      "
+                    >
+                      {
+                        item.desc
+                      }
+                    </p>
+
+                  </motion.div>
+
+                );
+
+              }
+            )}
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* ===================================================
+          REAL TESTIMONIALS
+          =================================================== */}
+
+      <section
+        className="
+          bg-white
+          py-20
+        "
+      >
+
+        <div className="container">
+
+          <motion.div
+            {...fadeInUp}
+            className="
+              mb-14
+              text-center
+            "
+          >
+
+            <p
+              className="
+                mb-2
+                text-xs
+                font-medium
+                uppercase
+                tracking-[0.25em]
+                text-bronze
+              "
+            >
+              Guest Stories
+            </p>
+
+
+            <h2
+              className="
+                font-serif
+                text-3xl
+                font-bold
+                text-espresso
+                md:text-4xl
+              "
+            >
+              What Our Guests Say
+            </h2>
+
+
+            <div
+              className="
+                mx-auto
+                mt-4
+                h-0.5
+                w-16
+                bg-bronze
+              "
+            />
+
+          </motion.div>
+
+
+          {loadingReviews ? (
+
+            <div
+              className="
+                py-12
+                text-center
+                text-muted-foreground
+              "
+            >
+              Loading guest reviews...
+            </div>
+
+          ) : reviews.length ===
+            0 ? (
+
+            <div
+              className="
+                py-12
+                text-center
+                text-muted-foreground
+              "
+            >
+              No guest reviews yet.
+            </div>
+
+          ) : (
+
+            <div
+              className="
+                grid
+                grid-cols-1
+                gap-8
+                md:grid-cols-3
+              "
+            >
+
+              {reviews
+                .slice(0, 3)
+                .map(
+                  (
+                    review,
+                    index
+                  ) => (
+
+                    <motion.div
+                      key={
+                        review.reviewId
+                      }
+                      initial={{
+                        opacity: 0,
+                        y: 20,
+                      }}
+                      whileInView={{
+                        opacity: 1,
+                        y: 0,
+                      }}
+                      viewport={{
+                        once: true,
+                      }}
+                      transition={{
+                        duration: 0.5,
+                        delay:
+                          index *
+                          0.1,
+                      }}
+                      className="
+                        relative
+                        rounded-2xl
+                        bg-cream
+                        p-8
+                      "
+                    >
+
+                      <Quote
+                        className="
+                          absolute
+                          right-6
+                          top-6
+                          h-8
+                          w-8
+                          text-bronze/20
+                        "
+                      />
+
+
+                      <div
+                        className="
+                          mb-4
+                          flex
+                          gap-0.5
+                        "
+                      >
+
+                        {Array.from({
+                          length:
+                            review.rating,
+                        }).map(
+                          (
+                            _,
+                            i
+                          ) => (
+
+                            <Star
+                              key={
+                                i
+                              }
+                              className="
+                                h-4
+                                w-4
+                                fill-bronze
+                                text-bronze
+                              "
+                            />
+
+                          )
+                        )}
+
+                      </div>
+
+
+                      <p
+                        className="
+                          mb-6
+                          leading-relaxed
+                          italic
+                          text-espresso/80
+                        "
+                      >
+                        "{review.comment}"
+                      </p>
+
+
+                      <div
+                        className="
+                          flex
+                          items-center
+                          gap-3
+                        "
+                      >
+
+                        <div
+                          className="
+                            flex
+                            h-10
+                            w-10
+                            items-center
+                            justify-center
+                            rounded-full
+                            bg-bronze/10
+                          "
+                        >
+
+                          <span
+                            className="
+                              text-sm
+                              font-semibold
+                              text-bronze
+                            "
+                          >
+
+                            {
+                              review.guestName
+                                ?.charAt(
+                                  0
+                                )
+                                ?.toUpperCase() ||
+                              "G"
+                            }
+
+                          </span>
+
+                        </div>
+
+
+                        <div>
+
+                          <p
+                            className="
+                              text-sm
+                              font-semibold
+                              text-espresso
+                            "
+                          >
+                            {
+                              review.guestName
+                            }
+                          </p>
+
+
+                          <p
+                            className="
+                              text-xs
+                              text-muted-foreground
+                            "
+                          >
+                            Verified Guest
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </motion.div>
+
+                  )
+                )}
+
+            </div>
+
+          )}
+
+        </div>
+
+      </section>
+
+
+      {/* ===================================================
+          CTA
+          =================================================== */}
+
+      <section
+        className="
+          py-20
+        "
+      >
+
+        <div className="container">
+
+          <motion.div
+            {...fadeInUp}
+            className="
+              relative
+              overflow-hidden
+              rounded-3xl
+              bg-espresso
+              px-8
+              py-16
+              text-center
+            "
+          >
+
+            <div
+              className="
+                absolute
+                inset-0
+                opacity-20
+              "
+            >
+
               <img
                 src="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1600&q=80"
                 alt=""
-                className="w-full h-full object-cover"
+                className="
+                  h-full
+                  w-full
+                  object-cover
+                "
               />
+
             </div>
-            <div className="relative z-10">
-              <Sparkles className="w-8 h-8 text-bronze mx-auto mb-4" />
-              <h2 className="font-serif text-3xl md:text-4xl font-bold text-white mb-4">
+
+
+            <div
+              className="
+                relative
+                z-10
+              "
+            >
+
+              <Sparkles
+                className="
+                  mx-auto
+                  mb-4
+                  h-8
+                  w-8
+                  text-bronze
+                "
+              />
+
+
+              <h2
+                className="
+                  mb-4
+                  font-serif
+                  text-3xl
+                  font-bold
+                  text-white
+                  md:text-4xl
+                "
+              >
                 Begin Your Journey
               </h2>
-              <p className="text-white/60 max-w-md mx-auto mb-8">
-                Join thousands of discerning travelers who trust BookMyStay for their
-                most memorable stays.
+
+
+              <p
+                className="
+                  mx-auto
+                  mb-8
+                  max-w-md
+                  text-white/60
+                "
+              >
+                Join thousands of discerning travelers
+                who trust BookMyStay for their most
+                memorable stays.
               </p>
-              <Link href="/register">
-                <button className="bg-bronze hover:bg-bronze-dark text-white font-semibold px-8 py-3 rounded-full transition-all duration-200 active:scale-[0.97] shadow-lg">
+
+
+              <Link
+                href="/register"
+              >
+
+                <button
+                  className="
+                    rounded-full
+                    bg-bronze
+                    px-8
+                    py-3
+                    font-semibold
+                    text-white
+                    shadow-lg
+                    transition-all
+                    duration-200
+                    hover:bg-bronze-dark
+                    active:scale-[0.97]
+                  "
+                >
                   Create Free Account
                 </button>
+
               </Link>
+
             </div>
+
           </motion.div>
+
         </div>
+
       </section>
+
     </MainLayout>
+
   );
 }
