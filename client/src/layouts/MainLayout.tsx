@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Compass,
   LayoutDashboard,
+  UserCircle,
 } from "lucide-react";
 
 import {
@@ -27,23 +28,19 @@ import {
   AvatarFallback,
 } from "@/components/ui/avatar";
 
-
 interface MainLayoutProps {
   children: ReactNode;
 }
 
-
 export default function MainLayout({
   children,
 }: MainLayoutProps) {
-
   const {
     user,
     isAuthenticated,
     logout,
     hasRole,
   } = useAuth();
-
 
   const [scrolled, setScrolled] =
     useState(false);
@@ -54,13 +51,11 @@ export default function MainLayout({
   const [location] =
     useLocation();
 
-
   // =========================================================
   // SCROLL ANIMATION
   // =========================================================
 
   useEffect(() => {
-
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
@@ -76,9 +71,7 @@ export default function MainLayout({
         handleScroll
       );
     };
-
   }, []);
-
 
   // =========================================================
   // CLOSE MOBILE MENU ON ROUTE CHANGE
@@ -88,14 +81,12 @@ export default function MainLayout({
     setMobileMenuOpen(false);
   }, [location]);
 
-
   // =========================================================
   // NAVBAR
   // =========================================================
 
   const isHomePage =
     location === "/";
-
 
   const navBg =
     scrolled || !isHomePage
@@ -113,38 +104,30 @@ export default function MainLayout({
           border-white/30
         `;
 
-
   // =========================================================
   // NAV LINKS
   // =========================================================
 
   const navLinks = [
-
     {
       label: "Home",
       href: "/",
     },
-
     {
       label: "Explore",
       href: "/search",
     },
-
     {
       label: "About",
       href: "/about",
     },
-
     {
       label: "List Property",
       href: "/list-property",
     },
-
   ];
 
-
   return (
-
     <div
       className="
         flex
@@ -184,10 +167,11 @@ export default function MainLayout({
           "
         >
 
-          {/* LOGO */}
+          {/* =================================================
+              LOGO
+          ================================================== */}
 
           <Link href="/">
-
             <div
               className="
                 flex
@@ -221,9 +205,7 @@ export default function MainLayout({
               </span>
 
             </div>
-
           </Link>
-
 
           {/* =================================================
               DESKTOP NAVIGATION
@@ -239,7 +221,6 @@ export default function MainLayout({
           >
 
             {navLinks.map((link) => (
-
               <Link
                 key={link.href}
                 href={link.href}
@@ -265,11 +246,9 @@ export default function MainLayout({
                 </span>
 
               </Link>
-
             ))}
 
           </nav>
-
 
           {/* =================================================
               AUTH SECTION
@@ -329,7 +308,6 @@ export default function MainLayout({
 
                     </Avatar>
 
-
                     <span
                       className="
                         text-sm
@@ -340,7 +318,6 @@ export default function MainLayout({
                       {user?.name ||
                         "Guest"}
                     </span>
-
 
                     <ChevronDown
                       className="
@@ -353,7 +330,6 @@ export default function MainLayout({
                   </button>
 
                 </DropdownMenuTrigger>
-
 
                 <DropdownMenuContent
                   align="end"
@@ -368,7 +344,41 @@ export default function MainLayout({
                   "
                 >
 
-                  {/* My Bookings */}
+                  {/* =================================================
+                      PROFILE
+                  ================================================== */}
+
+                  <DropdownMenuItem
+                    asChild
+                  >
+
+                    <Link
+                      href="/profile"
+                      className="
+                        flex
+                        items-center
+                        gap-2
+                        rounded-lg
+                        px-3
+                        py-2
+                        hover:bg-cream
+                      "
+                    >
+
+                      <UserCircle
+                        className="h-4 w-4"
+                      />
+
+                      Profile
+
+                    </Link>
+
+                  </DropdownMenuItem>
+
+
+                  {/* =================================================
+                      MY BOOKINGS
+                  ================================================== */}
 
                   <DropdownMenuItem
                     asChild
@@ -398,37 +408,49 @@ export default function MainLayout({
                   </DropdownMenuItem>
 
 
-                  {/* Owner Dashboard */}
+                  {/* =================================================
+                      OWNER DASHBOARD
 
-                  <DropdownMenuItem
-                    asChild
-                  >
+                      ONLY ROLE_OWNER CAN SEE THIS
+                  ================================================== */}
 
-                    <Link
-                      href="/owner"
-                      className="
-                        flex
-                        items-center
-                        gap-2
-                        rounded-lg
-                        px-3
-                        py-2
-                        hover:bg-cream
-                      "
+                  {hasRole("ROLE_OWNER") && (
+
+                    <DropdownMenuItem
+                      asChild
                     >
 
-                      <LayoutDashboard
-                        className="h-4 w-4"
-                      />
+                      <Link
+                        href="/owner"
+                        className="
+                          flex
+                          items-center
+                          gap-2
+                          rounded-lg
+                          px-3
+                          py-2
+                          hover:bg-cream
+                        "
+                      >
 
-                      Owner Dashboard
+                        <LayoutDashboard
+                          className="h-4 w-4"
+                        />
 
-                    </Link>
+                        Owner Dashboard
 
-                  </DropdownMenuItem>
+                      </Link>
+
+                    </DropdownMenuItem>
+
+                  )}
 
 
-                  {/* Admin */}
+                  {/* =================================================
+                      ADMIN
+
+                      ONLY ROLE_ADMIN CAN SEE THIS
+                  ================================================== */}
 
                   {hasRole("ROLE_ADMIN") && (
 
@@ -469,7 +491,9 @@ export default function MainLayout({
                   />
 
 
-                  {/* Logout */}
+                  {/* =================================================
+                      LOGOUT
+                  ================================================== */}
 
                   <DropdownMenuItem
                     onClick={logout}
@@ -518,7 +542,6 @@ export default function MainLayout({
                   </Button>
 
                 </Link>
-
 
                 <Link href="/register">
 
@@ -650,6 +673,33 @@ export default function MainLayout({
 
                 <>
 
+                  {/* =================================================
+                      PROFILE
+                  ================================================== */}
+
+                  <Link
+                    href="/profile"
+                  >
+
+                    <span
+                      className="
+                        block
+                        py-2
+                        font-medium
+                        text-espresso
+                        hover:text-bronze
+                      "
+                    >
+                      Profile
+                    </span>
+
+                  </Link>
+
+
+                  {/* =================================================
+                      MY BOOKINGS
+                  ================================================== */}
+
                   <Link
                     href="/my-bookings"
                   >
@@ -669,24 +719,40 @@ export default function MainLayout({
                   </Link>
 
 
-                  <Link
-                    href="/owner"
-                  >
+                  {/* =================================================
+                      OWNER DASHBOARD
 
-                    <span
-                      className="
-                        block
-                        py-2
-                        font-medium
-                        text-espresso
-                        hover:text-bronze
-                      "
+                      ONLY ROLE_OWNER
+                  ================================================== */}
+
+                  {hasRole("ROLE_OWNER") && (
+
+                    <Link
+                      href="/owner"
                     >
-                      Owner Dashboard
-                    </span>
 
-                  </Link>
+                      <span
+                        className="
+                          block
+                          py-2
+                          font-medium
+                          text-espresso
+                          hover:text-bronze
+                        "
+                      >
+                        Owner Dashboard
+                      </span>
 
+                    </Link>
+
+                  )}
+
+
+                  {/* =================================================
+                      ADMIN PANEL
+
+                      ONLY ROLE_ADMIN
+                  ================================================== */}
 
                   {hasRole("ROLE_ADMIN") && (
 
@@ -710,6 +776,10 @@ export default function MainLayout({
 
                   )}
 
+
+                  {/* =================================================
+                      LOGOUT
+                  ================================================== */}
 
                   <button
                     onClick={logout}
@@ -747,7 +817,6 @@ export default function MainLayout({
                     </span>
 
                   </Link>
-
 
                   <Link
                     href="/register"
@@ -822,7 +891,9 @@ export default function MainLayout({
             "
           >
 
-            {/* BRAND */}
+            {/* =================================================
+                BRAND
+            ================================================== */}
 
             <div>
 
@@ -856,7 +927,6 @@ export default function MainLayout({
 
               </div>
 
-
               <p
                 className="
                   text-sm
@@ -873,7 +943,9 @@ export default function MainLayout({
             </div>
 
 
-            {/* EXPLORE */}
+            {/* =================================================
+                EXPLORE
+            ================================================== */}
 
             <div>
 
@@ -889,7 +961,6 @@ export default function MainLayout({
               >
                 Explore
               </h4>
-
 
               <ul className="space-y-2">
 
@@ -913,7 +984,6 @@ export default function MainLayout({
 
                 </li>
 
-
                 <li>
 
                   <Link href="/search">
@@ -933,7 +1003,6 @@ export default function MainLayout({
                   </Link>
 
                 </li>
-
 
                 <li>
 
@@ -956,7 +1025,6 @@ export default function MainLayout({
                   </Link>
 
                 </li>
-
 
                 <li>
 
@@ -985,7 +1053,9 @@ export default function MainLayout({
             </div>
 
 
-            {/* COMPANY */}
+            {/* =================================================
+                COMPANY
+            ================================================== */}
 
             <div>
 
@@ -1001,7 +1071,6 @@ export default function MainLayout({
               >
                 Company
               </h4>
-
 
               <ul className="space-y-2">
 
@@ -1024,7 +1093,6 @@ export default function MainLayout({
                   </Link>
 
                 </li>
-
 
                 <li>
 
@@ -1051,7 +1119,9 @@ export default function MainLayout({
             </div>
 
 
-            {/* SUPPORT */}
+            {/* =================================================
+                SUPPORT
+            ================================================== */}
 
             <div>
 
@@ -1068,12 +1138,7 @@ export default function MainLayout({
                 Support
               </h4>
 
-
               <ul className="space-y-2">
-
-                {/* IMPORTANT:
-                    This must be /help, NOT /contact.
-                */}
 
                 <li>
 
@@ -1095,7 +1160,6 @@ export default function MainLayout({
 
                 </li>
 
-
                 <li>
 
                   <Link href="/contact">
@@ -1116,7 +1180,6 @@ export default function MainLayout({
 
                 </li>
 
-
                 <li>
 
                   <Link href="/terms">
@@ -1136,7 +1199,6 @@ export default function MainLayout({
                   </Link>
 
                 </li>
-
 
                 <li>
 
@@ -1195,7 +1257,6 @@ export default function MainLayout({
               BookMyStay. All rights reserved.
             </p>
 
-
             <div
               className="
                 flex
@@ -1215,7 +1276,6 @@ export default function MainLayout({
                 Instagram
               </span>
 
-
               <span
                 className="
                   cursor-pointer
@@ -1227,7 +1287,6 @@ export default function MainLayout({
               >
                 Twitter
               </span>
-
 
               <span
                 className="
@@ -1250,6 +1309,5 @@ export default function MainLayout({
       </footer>
 
     </div>
-
   );
 }

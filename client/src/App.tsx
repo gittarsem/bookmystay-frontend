@@ -3,12 +3,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch } from "wouter";
 
 import ErrorBoundary from "./components/ErrorBoundary";
+import ProtectedRoute from "./components/ProtectedRoute";
+
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 
-// =========================================================
-// PUBLIC
-// =========================================================
+/* =========================================================
+   PUBLIC
+========================================================= */
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -22,9 +24,9 @@ import ListingForOwners from "./pages/ListingForOwners";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 
-// =========================================================
-// BOOKING
-// =========================================================
+/* =========================================================
+   BOOKING
+========================================================= */
 
 import Booking from "./pages/Booking";
 import BookingSuccess from "./pages/BookingSuccess";
@@ -34,46 +36,55 @@ import MyBookings from "./pages/MyBookings";
 import BookingDetails from "./pages/BookingDetails";
 import ManageGuests from "./pages/ManageGuests";
 
-// =========================================================
-// REVIEWS
-// =========================================================
+/* =========================================================
+   REVIEWS
+========================================================= */
 
 import WriteReview from "./pages/WriteReview";
 import EditReview from "./pages/EditReview";
 
-// =========================================================
-// OWNER
-// =========================================================
+/* =========================================================
+   OWNER
+========================================================= */
 
+import OwnerApply from "./pages/OwnerApply";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import OwnerHotels from "./pages/OwnerHotels";
 import OwnerRooms from "./pages/OwnerRooms";
 import OwnerInventory from "./pages/OwnerInventory";
 import OwnerBookings from "./pages/OwnerBookings";
 import OwnerVerification from "./pages/OwnerVerification";
+import OwnerVerificationResubmit from "./pages/OwnerVerificationResubmit";
 import OwnerRevenue from "./pages/OwnerRevenue";
 import OwnerSettings from "./pages/OwnerSettings";
+import OwnerHotelCreate from "./pages/OwnerHotelCreate";
+import OwnerHotelDetails from "./pages/OwnerHotelDetails";
+import OwnerReviews from "./pages/OwnerReviews";
 
-// =========================================================
-// ADMIN
-// =========================================================
+/* =========================================================
+   ADMIN
+========================================================= */
 
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminHotels from "./pages/AdminHotels";
-import AdminUsers from "./pages/AdminUsers";
-import AdminVerification from "./pages/AdminVerification";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminHotels from "./pages/admin/AdminHotels";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminVerification from "./pages/admin/AdminVerification";
+import AdminReviews from "./pages/admin/AdminReviews";
+import AdminReports from "./pages/admin/AdminReports";
+import AdminActivity from "./pages/admin/AdminActivity";
+import AdminSettings from "./pages/admin/AdminSettings";
 
-// =========================================================
-// ERROR
-// =========================================================
+
+import Profile from "./pages/Profile";
+/* =========================================================
+   ERROR
+========================================================= */
 
 import NotFound from "./pages/NotFound";
-
 
 function Router() {
   return (
     <Switch>
-
       {/* =====================================================
           PUBLIC
       ====================================================== */}
@@ -113,9 +124,6 @@ function Router() {
         component={Contact}
       />
 
-      {/* IMPORTANT:
-          Help Center has its own route.
-      */}
       <Route
         path="/help"
         component={HelpCenter}
@@ -136,9 +144,8 @@ function Router() {
         component={Privacy}
       />
 
-
       {/* =====================================================
-          BOOKING FLOW
+          BOOKING
       ====================================================== */}
 
       <Route
@@ -161,7 +168,6 @@ function Router() {
         component={BookingConfirmation}
       />
 
-
       {/* =====================================================
           MY BOOKINGS
       ====================================================== */}
@@ -181,7 +187,6 @@ function Router() {
         component={ManageGuests}
       />
 
-
       {/* =====================================================
           REVIEWS
       ====================================================== */}
@@ -196,76 +201,275 @@ function Router() {
         component={EditReview}
       />
 
-
+      <Route
+        path="/profile"
+        component={() => (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        )}
+      />
       {/* =====================================================
-          OWNER
+          OWNER ONBOARDING
       ====================================================== */}
 
       <Route
-        path="/owner"
-        component={OwnerDashboard}
-      />
-
-      <Route
-        path="/owner/hotels"
-        component={OwnerHotels}
-      />
-
-      <Route
-        path="/owner/rooms"
-        component={OwnerRooms}
-      />
-
-      <Route
-        path="/owner/inventory"
-        component={OwnerInventory}
-      />
-
-      <Route
-        path="/owner/bookings"
-        component={OwnerBookings}
+        path="/owner/apply"
+        component={() => (
+          <ProtectedRoute>
+            <OwnerApply />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/owner/verification"
-        component={OwnerVerification}
+        component={() => (
+          <ProtectedRoute>
+            <OwnerVerification />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/verification/resubmit"
+        component={() => (
+          <ProtectedRoute>
+            <OwnerVerificationResubmit />
+          </ProtectedRoute>
+        )}
+      />
+
+      {/* =====================================================
+          OWNER PORTAL
+      ====================================================== */}
+
+      <Route
+        path="/owner"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerDashboard />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/hotels"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerHotels />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/hotels/new"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerHotelCreate />
+          </ProtectedRoute>
+        )}
+      />
+
+
+      <Route
+        path="/owner/hotels/:hotelId"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerHotelDetails />
+          </ProtectedRoute>
+        )}
+      />
+
+
+
+      <Route
+        path="/owner/rooms"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerRooms />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/:hotelId/rooms"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerRooms />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/inventory"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerInventory />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/bookings"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerBookings />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/hotels/:hotelId/bookings"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerBookings />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/owner/revenue"
-        component={OwnerRevenue}
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerRevenue />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/reviews"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerReviews />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/owner/settings"
-        component={OwnerSettings}
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_OWNER"
+          >
+            <OwnerSettings />
+          </ProtectedRoute>
+        )}
       />
 
-
       {/* =====================================================
-          ADMIN
+          ADMIN PORTAL
       ====================================================== */}
 
       <Route
         path="/admin"
-        component={AdminDashboard}
-      />
-
-      <Route
-        path="/admin/hotels"
-        component={AdminHotels}
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_ADMIN"
+          >
+            <AdminDashboard />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/admin/users"
-        component={AdminUsers}
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_ADMIN"
+          >
+            <AdminUsers />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/admin/hotels"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_ADMIN"
+          >
+            <AdminHotels />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/admin/verification"
-        component={AdminVerification}
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_ADMIN"
+          >
+            <AdminVerification />
+          </ProtectedRoute>
+        )}
       />
 
+      <Route
+        path="/admin/reviews"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_ADMIN"
+          >
+            <AdminReviews />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/admin/reports"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_ADMIN"
+          >
+            <AdminReports />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/admin/activity"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_ADMIN"
+          >
+            <AdminActivity />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/admin/settings"
+        component={() => (
+          <ProtectedRoute
+            requiredRole="ROLE_ADMIN"
+          >
+            <AdminSettings />
+          </ProtectedRoute>
+        )}
+      />
 
       {/* =====================================================
           404
@@ -279,38 +483,27 @@ function Router() {
       <Route
         component={NotFound}
       />
-
     </Switch>
   );
 }
 
-
 function App() {
   return (
     <ErrorBoundary>
-
       <ThemeProvider>
-
         <AuthProvider>
-
           <TooltipProvider>
-
             <Toaster
               richColors
               position="top-right"
             />
 
             <Router />
-
           </TooltipProvider>
-
         </AuthProvider>
-
       </ThemeProvider>
-
     </ErrorBoundary>
   );
 }
-
 
 export default App;
