@@ -1,90 +1,1110 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, Phone, MapPin, Send } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Send,
+  MessageSquare,
+} from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { toast } from "sonner";
 
-export default function Contact() {
-  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success("Message sent! We'll get back to you soon.");
-    setForm({ name: "", email: "", subject: "", message: "" });
+type ContactType =
+  | "GENERAL"
+  | "BOOKING"
+  | "CANCELLATION"
+  | "PAYMENT"
+  | "HOTEL"
+  | "FEEDBACK";
+
+
+const CONTACT_TYPES: {
+  value: ContactType;
+  label: string;
+}[] = [
+  {
+    value: "GENERAL",
+    label: "General Question",
+  },
+  {
+    value: "BOOKING",
+    label: "Booking Issue",
+  },
+  {
+    value: "CANCELLATION",
+    label: "Cancellation / Refund",
+  },
+  {
+    value: "PAYMENT",
+    label: "Payment Issue",
+  },
+  {
+    value: "HOTEL",
+    label: "Hotel Issue",
+  },
+  {
+    value: "FEEDBACK",
+    label: "Feedback",
+  },
+];
+
+
+export default function Contact() {
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    type: "GENERAL" as ContactType,
+    bookingId: "",
+    subject: "",
+    message: "",
+  });
+
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+
+  const handleChange = (
+    field: keyof typeof form,
+    value: string
+  ) => {
+
+    setForm((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+
   };
 
+
+  const handleSubmit = (
+    e: React.FormEvent
+  ) => {
+
+    e.preventDefault();
+
+
+    // =====================================================
+    // VALIDATION
+    // =====================================================
+
+    if (!form.name.trim()) {
+
+      toast.error(
+        "Please enter your name."
+      );
+
+      return;
+    }
+
+
+    if (!form.email.trim()) {
+
+      toast.error(
+        "Please enter your email."
+      );
+
+      return;
+    }
+
+
+    if (!form.message.trim()) {
+
+      toast.error(
+        "Please enter your message."
+      );
+
+      return;
+    }
+
+
+    setSubmitting(true);
+
+
+    // =====================================================
+    // GET ISSUE TYPE LABEL
+    // =====================================================
+
+    const selectedType =
+      CONTACT_TYPES.find(
+        (item) =>
+          item.value === form.type
+      )?.label ??
+      "General Question";
+
+
+    // =====================================================
+    // EMAIL SUBJECT
+    // =====================================================
+
+    const emailSubject =
+      form.subject.trim() ||
+      `BookMyStay - ${selectedType}`;
+
+
+    // =====================================================
+    // EMAIL BODY
+    // =====================================================
+
+    const emailBody = [
+      `Name: ${form.name.trim()}`,
+      `Email: ${form.email.trim()}`,
+      `Issue Type: ${selectedType}`,
+      form.bookingId.trim()
+        ? `Booking ID: ${form.bookingId.trim()}`
+        : "Booking ID: Not provided",
+      "",
+      "Message:",
+      form.message.trim(),
+    ].join("\n");
+
+
+    // =====================================================
+    // OPEN GMAIL COMPOSE
+    // =====================================================
+
+    const gmailUrl =
+      "https://mail.google.com/mail/" +
+      "?view=cm" +
+      "&fs=1" +
+      "&to=work4tarsemgulab@gmail.com" +
+      `&su=${encodeURIComponent(
+        emailSubject
+      )}` +
+      `&body=${encodeURIComponent(
+        emailBody
+      )}`;
+
+
+    const gmailWindow =
+      window.open(
+        gmailUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+
+    // =====================================================
+    // CHECK WHETHER POPUP WAS BLOCKED
+    // =====================================================
+
+    if (!gmailWindow) {
+
+      toast.error(
+        "Please allow pop-ups to open Gmail."
+      );
+
+      setSubmitting(false);
+
+      return;
+    }
+
+
+    // =====================================================
+    // SUCCESS
+    // =====================================================
+
+    toast.success(
+      "Gmail opened with your message ready to send."
+    );
+
+
+    // =====================================================
+    // RESET FORM
+    // =====================================================
+
+    setForm({
+      name: "",
+      email: "",
+      type: "GENERAL",
+      bookingId: "",
+      subject: "",
+      message: "",
+    });
+
+
+    setSubmitting(false);
+
+  };
+
+
   return (
+
     <MainLayout>
-      <section className="py-20">
-        <div className="container">
-          <div className="max-w-2xl mx-auto text-center mb-12">
-            <p className="text-xs uppercase tracking-[0.25em] text-bronze font-medium mb-3">
-              Get In Touch
+
+      <section
+        className="
+          min-h-[calc(100vh-80px)]
+          py-16
+          md:py-20
+        "
+      >
+
+        <div
+          className="
+            container
+            max-w-6xl
+          "
+        >
+
+          {/* =================================================
+              HEADER
+          ================================================== */}
+
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              duration: 0.6,
+            }}
+            className="
+              mx-auto
+              mb-12
+              max-w-2xl
+              text-center
+            "
+          >
+
+            <p
+              className="
+                mb-3
+                text-xs
+                font-medium
+                uppercase
+                tracking-[0.25em]
+                text-bronze
+              "
+            >
+              We're Here To Help
             </p>
-            <h1 className="font-serif text-4xl font-bold text-espresso mb-3">
+
+
+            <h1
+              className="
+                mb-3
+                font-serif
+                text-4xl
+                font-bold
+                text-espresso
+                md:text-5xl
+              "
+            >
               Contact Us
             </h1>
-            <p className="text-muted-foreground">
-              We'd love to hear from you. Reach out for any questions, partnerships, or feedback.
+
+
+            <p
+              className="
+                text-muted-foreground
+              "
+            >
+              Have a question, booking issue, or
+              feedback? Send us a message and we'll
+              get back to you.
             </p>
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {/* Contact Info */}
-            <div className="space-y-6">
-              {[
-                { icon: Mail, label: "Email", value: "hello@bookmystay.com" },
-                { icon: Phone, label: "Phone", value: "+91 98765 43210" },
-                { icon: MapPin, label: "Address", value: "Bandra Kurla Complex, Mumbai 400051" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-bronze/10 rounded-xl flex items-center justify-center shrink-0">
-                    <item.icon className="w-4 h-4 text-bronze" />
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">
-                      {item.label}
-                    </p>
-                    <p className="text-espresso font-medium mt-0.5">{item.value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          </motion.div>
 
-            {/* Form */}
-            <div className="lg:col-span-2">
-              <motion.form
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                onSubmit={handleSubmit}
-                className="bg-white rounded-2xl shadow-warm border border-warm-stone/20 p-8 space-y-5"
+
+          <div
+            className="
+              grid
+              grid-cols-1
+              gap-8
+              lg:grid-cols-3
+            "
+          >
+
+            {/* =================================================
+                CONTACT INFORMATION
+            ================================================== */}
+
+            <motion.div
+              initial={{
+                opacity: 0,
+                x: -20,
+              }}
+              animate={{
+                opacity: 1,
+                x: 0,
+              }}
+              transition={{
+                duration: 0.6,
+              }}
+              className="
+                space-y-5
+              "
+            >
+
+              <div
+                className="
+                  rounded-2xl
+                  border
+                  border-warm-stone/20
+                  bg-white
+                  p-6
+                  shadow-warm
+                "
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">Name</label>
-                    <input required type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-4 py-3 bg-cream rounded-xl border border-warm-stone/30 text-sm focus:outline-none focus:ring-2 focus:ring-bronze/20" />
+
+                <h2
+                  className="
+                    mb-5
+                    font-serif
+                    text-xl
+                    font-semibold
+                    text-espresso
+                  "
+                >
+                  Get In Touch
+                </h2>
+
+
+                <div
+                  className="
+                    space-y-5
+                  "
+                >
+
+                  {/* EMAIL */}
+
+                  <div
+                    className="
+                      flex
+                      items-start
+                      gap-3
+                    "
+                  >
+
+                    <div
+                      className="
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-bronze/10
+                      "
+                    >
+
+                      <Mail
+                        className="
+                          h-4
+                          w-4
+                          text-bronze
+                        "
+                      />
+
+                    </div>
+
+
+                    <div>
+
+                      <p
+                        className="
+                          text-xs
+                          font-medium
+                          uppercase
+                          tracking-widest
+                          text-muted-foreground
+                        "
+                      >
+                        Email
+                      </p>
+
+
+                      <a
+                        href="mailto:work4tarsemgulab@gmail.com"
+                        className="
+                          mt-0.5
+                          block
+                          font-medium
+                          text-espresso
+                          transition-colors
+                          hover:text-bronze
+                        "
+                      >
+                        work4tarsemgulab@gmail.com
+                      </a>
+
+                    </div>
+
                   </div>
-                  <div>
-                    <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">Email</label>
-                    <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-4 py-3 bg-cream rounded-xl border border-warm-stone/30 text-sm focus:outline-none focus:ring-2 focus:ring-bronze/20" />
+
+
+                  {/* PHONE */}
+
+                  <div
+                    className="
+                      flex
+                      items-start
+                      gap-3
+                    "
+                  >
+
+                    <div
+                      className="
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-bronze/10
+                      "
+                    >
+
+                      <Phone
+                        className="
+                          h-4
+                          w-4
+                          text-bronze
+                        "
+                      />
+
+                    </div>
+
+
+                    <div>
+
+                      <p
+                        className="
+                          text-xs
+                          font-medium
+                          uppercase
+                          tracking-widest
+                          text-muted-foreground
+                        "
+                      >
+                        Phone
+                      </p>
+
+
+                      <a
+                        href="tel:+917814903883"
+                        className="
+                          mt-0.5
+                          block
+                          font-medium
+                          text-espresso
+                          transition-colors
+                          hover:text-bronze
+                        "
+                      >
+                        +91 78149 03883
+                      </a>
+
+                    </div>
+
                   </div>
+
+
+                  {/* ADDRESS */}
+
+                  <div
+                    className="
+                      flex
+                      items-start
+                      gap-3
+                    "
+                  >
+
+                    <div
+                      className="
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-bronze/10
+                      "
+                    >
+
+                      <MapPin
+                        className="
+                          h-4
+                          w-4
+                          text-bronze
+                        "
+                      />
+
+                    </div>
+
+
+                    <div>
+
+                      <p
+                        className="
+                          text-xs
+                          font-medium
+                          uppercase
+                          tracking-widest
+                          text-muted-foreground
+                        "
+                      >
+                        Address
+                      </p>
+
+
+                      <p
+                        className="
+                          mt-0.5
+                          font-medium
+                          leading-relaxed
+                          text-espresso
+                        "
+                      >
+                        Punjab, India
+                      </p>
+
+                    </div>
+
+                  </div>
+
                 </div>
+
+              </div>
+
+
+              {/* =================================================
+                  QUICK HELP
+              ================================================== */}
+
+              <div
+                className="
+                  rounded-2xl
+                  bg-espresso
+                  p-6
+                  text-white
+                  shadow-warm
+                "
+              >
+
+                <MessageSquare
+                  className="
+                    mb-4
+                    h-7
+                    w-7
+                    text-bronze
+                  "
+                />
+
+
+                <h3
+                  className="
+                    font-serif
+                    text-xl
+                    font-semibold
+                  "
+                >
+                  Need Help With A Booking?
+                </h3>
+
+
+                <p
+                  className="
+                    mt-2
+                    text-sm
+                    leading-relaxed
+                    text-white/60
+                  "
+                >
+                  Include your booking ID in your
+                  message so we can help you faster.
+                </p>
+
+              </div>
+
+            </motion.div>
+
+
+            {/* =================================================
+                CONTACT FORM
+            ================================================== */}
+
+            <motion.div
+              initial={{
+                opacity: 0,
+                y: 20,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+              transition={{
+                duration: 0.6,
+                delay: 0.1,
+              }}
+              className="
+                lg:col-span-2
+              "
+            >
+
+              <form
+                onSubmit={handleSubmit}
+                className="
+                  space-y-5
+                  rounded-2xl
+                  border
+                  border-warm-stone/20
+                  bg-white
+                  p-6
+                  shadow-warm
+                  md:p-8
+                "
+              >
+
+                {/* NAME + EMAIL */}
+
+                <div
+                  className="
+                    grid
+                    grid-cols-1
+                    gap-4
+                    sm:grid-cols-2
+                  "
+                >
+
+                  <div>
+
+                    <label
+                      htmlFor="contact-name"
+                      className="
+                        mb-1.5
+                        block
+                        text-xs
+                        font-medium
+                        uppercase
+                        tracking-widest
+                        text-muted-foreground
+                      "
+                    >
+                      Name *
+                    </label>
+
+
+                    <input
+                      id="contact-name"
+                      required
+                      type="text"
+                      value={form.name}
+                      onChange={(e) =>
+                        handleChange(
+                          "name",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Your name"
+                      className="
+                        w-full
+                        rounded-xl
+                        border
+                        border-warm-stone/30
+                        bg-cream
+                        px-4
+                        py-3
+                        text-sm
+                        text-espresso
+                        outline-none
+                        transition
+                        placeholder:text-muted-foreground/60
+                        focus:border-bronze
+                        focus:ring-2
+                        focus:ring-bronze/20
+                      "
+                    />
+
+                  </div>
+
+
+                  <div>
+
+                    <label
+                      htmlFor="contact-email"
+                      className="
+                        mb-1.5
+                        block
+                        text-xs
+                        font-medium
+                        uppercase
+                        tracking-widest
+                        text-muted-foreground
+                      "
+                    >
+                      Email *
+                    </label>
+
+
+                    <input
+                      id="contact-email"
+                      required
+                      type="email"
+                      value={form.email}
+                      onChange={(e) =>
+                        handleChange(
+                          "email",
+                          e.target.value
+                        )
+                      }
+                      placeholder="you@example.com"
+                      className="
+                        w-full
+                        rounded-xl
+                        border
+                        border-warm-stone/30
+                        bg-cream
+                        px-4
+                        py-3
+                        text-sm
+                        text-espresso
+                        outline-none
+                        transition
+                        placeholder:text-muted-foreground/60
+                        focus:border-bronze
+                        focus:ring-2
+                        focus:ring-bronze/20
+                      "
+                    />
+
+                  </div>
+
+                </div>
+
+
+                {/* ISSUE TYPE + BOOKING ID */}
+
+                <div
+                  className="
+                    grid
+                    grid-cols-1
+                    gap-4
+                    sm:grid-cols-2
+                  "
+                >
+
+                  <div>
+
+                    <label
+                      htmlFor="contact-type"
+                      className="
+                        mb-1.5
+                        block
+                        text-xs
+                        font-medium
+                        uppercase
+                        tracking-widest
+                        text-muted-foreground
+                      "
+                    >
+                      What Can We Help With? *
+                    </label>
+
+
+                    <select
+                      id="contact-type"
+                      required
+                      value={form.type}
+                      onChange={(e) =>
+                        handleChange(
+                          "type",
+                          e.target.value
+                        )
+                      }
+                      className="
+                        w-full
+                        rounded-xl
+                        border
+                        border-warm-stone/30
+                        bg-cream
+                        px-4
+                        py-3
+                        text-sm
+                        text-espresso
+                        outline-none
+                        transition
+                        focus:border-bronze
+                        focus:ring-2
+                        focus:ring-bronze/20
+                      "
+                    >
+
+                      {CONTACT_TYPES.map(
+                        (type) => (
+
+                          <option
+                            key={type.value}
+                            value={type.value}
+                          >
+                            {type.label}
+                          </option>
+
+                        )
+                      )}
+
+                    </select>
+
+                  </div>
+
+
+                  <div>
+
+                    <label
+                      htmlFor="contact-booking"
+                      className="
+                        mb-1.5
+                        block
+                        text-xs
+                        font-medium
+                        uppercase
+                        tracking-widest
+                        text-muted-foreground
+                      "
+                    >
+                      Booking ID
+
+                      <span
+                        className="
+                          ml-1
+                          normal-case
+                          tracking-normal
+                        "
+                      >
+                        (optional)
+                      </span>
+
+                    </label>
+
+
+                    <input
+                      id="contact-booking"
+                      type="text"
+                      value={form.bookingId}
+                      onChange={(e) =>
+                        handleChange(
+                          "bookingId",
+                          e.target.value
+                        )
+                      }
+                      placeholder="e.g. 12345"
+                      className="
+                        w-full
+                        rounded-xl
+                        border
+                        border-warm-stone/30
+                        bg-cream
+                        px-4
+                        py-3
+                        text-sm
+                        text-espresso
+                        outline-none
+                        transition
+                        placeholder:text-muted-foreground/60
+                        focus:border-bronze
+                        focus:ring-2
+                        focus:ring-bronze/20
+                      "
+                    />
+
+                  </div>
+
+                </div>
+
+
+                {/* SUBJECT */}
+
                 <div>
-                  <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">Subject</label>
-                  <input type="text" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full px-4 py-3 bg-cream rounded-xl border border-warm-stone/30 text-sm focus:outline-none focus:ring-2 focus:ring-bronze/20" />
+
+                  <label
+                    htmlFor="contact-subject"
+                    className="
+                      mb-1.5
+                      block
+                      text-xs
+                      font-medium
+                      uppercase
+                      tracking-widest
+                      text-muted-foreground
+                    "
+                  >
+                    Subject
+                  </label>
+
+
+                  <input
+                    id="contact-subject"
+                    type="text"
+                    value={form.subject}
+                    onChange={(e) =>
+                      handleChange(
+                        "subject",
+                        e.target.value
+                      )
+                    }
+                    placeholder="How can we help?"
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-warm-stone/30
+                      bg-cream
+                      px-4
+                      py-3
+                      text-sm
+                      text-espresso
+                      outline-none
+                      transition
+                      placeholder:text-muted-foreground/60
+                      focus:border-bronze
+                      focus:ring-2
+                      focus:ring-bronze/20
+                    "
+                  />
+
                 </div>
+
+
+                {/* MESSAGE */}
+
                 <div>
-                  <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">Message</label>
-                  <textarea required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} rows={4} className="w-full px-4 py-3 bg-cream rounded-xl border border-warm-stone/30 text-sm focus:outline-none focus:ring-2 focus:ring-bronze/20 resize-none" />
+
+                  <label
+                    htmlFor="contact-message"
+                    className="
+                      mb-1.5
+                      block
+                      text-xs
+                      font-medium
+                      uppercase
+                      tracking-widest
+                      text-muted-foreground
+                    "
+                  >
+                    Message *
+                  </label>
+
+
+                  <textarea
+                    id="contact-message"
+                    required
+                    value={form.message}
+                    onChange={(e) =>
+                      handleChange(
+                        "message",
+                        e.target.value
+                      )
+                    }
+                    rows={6}
+                    placeholder="Tell us how we can help..."
+                    className="
+                      w-full
+                      resize-none
+                      rounded-xl
+                      border
+                      border-warm-stone/30
+                      bg-cream
+                      px-4
+                      py-3
+                      text-sm
+                      text-espresso
+                      outline-none
+                      transition
+                      placeholder:text-muted-foreground/60
+                      focus:border-bronze
+                      focus:ring-2
+                      focus:ring-bronze/20
+                    "
+                  />
+
                 </div>
-                <button type="submit" className="flex items-center gap-2 bg-bronze hover:bg-bronze-dark text-white font-semibold px-8 py-3 rounded-xl transition-all active:scale-[0.97]">
-                  <Send className="w-4 h-4" /> Send Message
-                </button>
-              </motion.form>
-            </div>
+
+
+                {/* SUBMIT */}
+
+                <div
+                  className="
+                    flex
+                    flex-col
+                    gap-3
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+                  "
+                >
+
+                  <p
+                    className="
+                      text-xs
+                      leading-relaxed
+                      text-muted-foreground
+                    "
+                  >
+                    Gmail will open with your message
+                    prepared. Review it and click Send.
+                  </p>
+
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="
+                      flex
+                      shrink-0
+                      items-center
+                      justify-center
+                      gap-2
+                      rounded-xl
+                      bg-bronze
+                      px-8
+                      py-3
+                      font-semibold
+                      text-white
+                      transition-all
+                      hover:bg-bronze-dark
+                      active:scale-[0.97]
+                      disabled:cursor-not-allowed
+                      disabled:opacity-60
+                    "
+                  >
+
+                    <Send
+                      className="
+                        h-4
+                        w-4
+                      "
+                    />
+
+                    {submitting
+                      ? "Opening Gmail..."
+                      : "Send Message"}
+
+                  </button>
+
+                </div>
+
+              </form>
+
+            </motion.div>
+
           </div>
+
         </div>
+
       </section>
+
     </MainLayout>
   );
 }
