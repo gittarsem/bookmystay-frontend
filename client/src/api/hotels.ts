@@ -28,4 +28,6 @@ export const hotelsApi = {
   getAll() {
     return api.get("/hotels");
   },
+
+  
 };
