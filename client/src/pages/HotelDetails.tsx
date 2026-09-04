@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useRoute, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -12,6 +12,10 @@ import {
   X,
   MessageSquare,
   Clock,
+  Users,
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
 } from "lucide-react";
 
 import MainLayout from "@/layouts/MainLayout";
@@ -25,6 +29,7 @@ import {
   type BookingRequest,
   type PriceQuote,
 } from "@/api/bookings";
+
 import { useAuth } from "@/contexts/AuthContext";
 
 import { mapHotelInfo } from "@/mappers/hotelInfoMapper";
@@ -34,7 +39,6 @@ import {
   reviewsApi,
   type ReviewResponse,
 } from "@/api/reviews";
-import { StringifyOptions } from "node:querystring";
 
 /* =========================================================
    TYPES
@@ -42,38 +46,184 @@ import { StringifyOptions } from "node:querystring";
 
 type BookingMode = "DAILY" | "HOURLY";
 
-interface Hotel {
-  id?: string | number;
-  [key: string]: unknown;
-}
+type RoomType =
+  | "STANDARD"
+  | "DOUBLE"
+  | "DELUXE"
+  | "SUITE"
+  | "FAMILY";
 
 interface Room {
-  type: string;
-  capacity?: number;
-  price?: number | string;
+  id: number;
+  type: RoomType;
+  capacity: number;
   image?: string;
-  [key: string]: unknown;
 }
 
+interface RoomTypePricing {
+  roomType: RoomType;
+  hourlyPrice: number | string;
+  dailyPrice: number | string;
+  capacity: number;
+  totalRooms: number;
+}
 
+interface HourlyAdjustment {
+  originalCheckIn: string;
+  originalCheckOut: string;
+  adjustedCheckOut: string;
+  originalDurationMinutes: number;
+  adjustedDurationMinutes: number;
+  remainingMinutes: number;
+  direction: "EARLIER" | "LATER";
+}
+
+/* =========================================================
+   HARD-CODED ROOM TYPE IMAGES
+   DO NOT CHANGE
+   ========================================================= */
+
+const ROOM_TYPE_IMAGES: Record<RoomType, string> = {
+  STANDARD:
+    "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=85",
+
+  DOUBLE:
+    "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=85",
+
+  DELUXE:
+    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=85",
+
+  SUITE:
+    "https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=1200&q=85",
+
+  FAMILY:
+    "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?auto=format&fit=crop&w=1200&q=85",
+};
+
+/* =========================================================
+   ROOM TYPE LABELS
+   ========================================================= */
+
+const ROOM_TYPE_LABELS: Record<RoomType, string> = {
+  STANDARD: "Standard Room",
+  DOUBLE: "Double Room",
+  DELUXE: "Deluxe Room",
+  SUITE: "Suite",
+  FAMILY: "Family Room",
+};
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+function formatRoomType(type: string): string {
+  return (
+    ROOM_TYPE_LABELS[type as RoomType] ||
+    type
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) =>
+        letter.toUpperCase()
+      )
+  );
+}
+
+function formatPrice(
+  value: number | string | null | undefined
+): string | null {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return null;
+  }
+
+  return numericValue.toLocaleString("en-IN");
+}
+
+function getMinutesFromTime(time: string): number {
+  const [hours, minutes] = time
+    .split(":")
+    .map(Number);
+
+  return hours * 60 + minutes;
+}
+
+function formatTimeValue(totalMinutes: number): string {
+  const normalized =
+    ((totalMinutes % 1440) + 1440) % 1440;
+
+  const hours = Math.floor(
+    normalized / 60
+  );
+
+  const minutes = normalized % 60;
+
+  return `${String(hours).padStart(
+    2,
+    "0"
+  )}:${String(minutes).padStart(2, "0")}`;
+}
+
+function formatDuration(
+  minutes: number
+): string {
+  const hours = Math.floor(
+    minutes / 60
+  );
+
+  const remainingMinutes =
+    minutes % 60;
+
+  if (hours === 0) {
+    return `${remainingMinutes} minute${
+      remainingMinutes === 1
+        ? ""
+        : "s"
+    }`;
+  }
+
+  if (remainingMinutes === 0) {
+    return `${hours} hour${
+      hours === 1 ? "" : "s"
+    }`;
+  }
+
+  return `${hours} hour${
+    hours === 1 ? "" : "s"
+  } ${remainingMinutes} minute${
+    remainingMinutes === 1
+      ? ""
+      : "s"
+  }`;
+}
 
 /* =========================================================
    COMPONENT
    ========================================================= */
 
 export default function HotelDetails() {
-  const [, params] = useRoute<{ hotelId: string }>(
-    "/hotel/:hotelId"
-  );
+  const [, params] = useRoute<{
+    hotelId: string;
+  }>("/hotel/:hotelId");
 
-  const [, setLocation] = useLocation();
+  const [, setLocation] =
+    useLocation();
 
   const search = useSearch();
 
   const searchParams =
     new URLSearchParams(search);
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } =
+    useAuth();
 
   /* =======================================================
      HOTEL
@@ -84,6 +234,9 @@ export default function HotelDetails() {
 
   const [rooms, setRooms] =
     useState<Room[]>([]);
+
+  const [roomTypePricing, setRoomTypePricing] =
+    useState<RoomTypePricing[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -104,39 +257,62 @@ export default function HotelDetails() {
 
   const [bookingMode, setBookingMode] =
     useState<BookingMode>(
-      searchParams.get("bookingMode") === "HOURLY"
+      searchParams.get(
+        "bookingMode"
+      ) === "HOURLY"
         ? "HOURLY"
         : "DAILY"
     );
 
   const [checkInDate, setCheckInDate] =
     useState(
-      searchParams.get("checkInDate") || ""
+      searchParams.get(
+        "checkInDate"
+      ) || ""
     );
 
   const [checkOutDate, setCheckOutDate] =
     useState(
-      searchParams.get("checkOutDate") || ""
+      searchParams.get(
+        "checkOutDate"
+      ) || ""
     );
 
   const [checkInTime, setCheckInTime] =
     useState(
-      searchParams.get("checkInTime") || ""
+      searchParams.get(
+        "checkInTime"
+      ) || ""
     );
 
   const [checkOutTime, setCheckOutTime] =
     useState(
-      searchParams.get("checkOutTime") || ""
+      searchParams.get(
+        "checkOutTime"
+      ) || ""
     );
 
   const [adults, setAdults] =
     useState(
-      Number(searchParams.get("adults")) || 2
+      Number(
+        searchParams.get("adults")
+      ) || 2
     );
 
   const [children, setChildren] =
     useState(
-      Number(searchParams.get("children")) || 0
+      Number(
+        searchParams.get("children")
+      ) || 0
+    );
+
+  /* =======================================================
+     HOURLY ADJUSTMENT
+     ======================================================= */
+
+  const [hourlyAdjustment, setHourlyAdjustment] =
+    useState<HourlyAdjustment | null>(
+      null
     );
 
   /* =======================================================
@@ -144,13 +320,17 @@ export default function HotelDetails() {
      ======================================================= */
 
   const [quote, setQuote] =
-    useState<PriceQuote | null>(null);
+    useState<PriceQuote | null>(
+      null
+    );
 
   const [quoteLoading, setQuoteLoading] =
     useState(false);
 
   const [selectedRoomType, setSelectedRoomType] =
-    useState<string | null>(null);
+    useState<RoomType | null>(
+      null
+    );
 
   /* =======================================================
      REVIEWS
@@ -195,12 +375,34 @@ export default function HotelDetails() {
             Number(params.hotelId)
           );
 
+        console.log(
+          "FULL HOTEL RESPONSE:",
+          data
+        );
+
+        console.log(
+          "ROOMS:",
+          data.rooms
+        );
+
+        console.log(
+          "ROOM TYPES:",
+          data.roomTypes
+        );
+
         setHotel(
           mapHotelInfo(data)
         );
 
         setRooms(
-          mapRooms(data.rooms)
+          mapRooms(
+            data.rooms
+          ) as Room[]
+        );
+
+        setRoomTypePricing(
+          (data.roomTypes ||
+            []) as RoomTypePricing[]
         );
       } catch (error) {
         console.error(
@@ -258,13 +460,54 @@ export default function HotelDetails() {
       );
     } catch (error: any) {
       toast.error(
-        error?.response?.data?.message ||
-        "Unable to load reviews."
+        error?.response?.data
+          ?.message ||
+          "Unable to load reviews."
       );
     } finally {
       setReviewsLoading(false);
     }
   }
+
+  /* =======================================================
+     ROOM TYPE PRICING LOOKUP
+     ======================================================= */
+
+  const pricingByRoomType =
+    useMemo(() => {
+      return new Map(
+        roomTypePricing.map(
+          (pricing) => [
+            pricing.roomType,
+            pricing,
+          ]
+        )
+      );
+    }, [roomTypePricing]);
+
+  /* =======================================================
+     UNIQUE ROOM TYPES
+     ======================================================= */
+
+  const uniqueRoomTypes =
+    useMemo(() => {
+      const seen =
+        new Set<RoomType>();
+
+      return rooms.filter(
+        (room) => {
+          if (
+            seen.has(room.type)
+          ) {
+            return false;
+          }
+
+          seen.add(room.type);
+
+          return true;
+        }
+      );
+    }, [rooms]);
 
   /* =======================================================
      CLEAR QUOTE
@@ -285,6 +528,8 @@ export default function HotelDetails() {
     setBookingMode(mode);
 
     clearQuote();
+
+    setHourlyAdjustment(null);
 
     if (mode === "DAILY") {
       setCheckInTime("");
@@ -312,7 +557,11 @@ export default function HotelDetails() {
 
     clearQuote();
 
-    if (bookingMode === "HOURLY") {
+    setHourlyAdjustment(null);
+
+    if (
+      bookingMode === "HOURLY"
+    ) {
       setCheckOutDate(value);
       return;
     }
@@ -334,10 +583,15 @@ export default function HotelDetails() {
   ) => {
     clearQuote();
 
-    if (bookingMode === "HOURLY") {
+    setHourlyAdjustment(null);
+
+    if (
+      bookingMode === "HOURLY"
+    ) {
       setCheckOutDate(
         checkInDate
       );
+
       return;
     }
 
@@ -345,219 +599,505 @@ export default function HotelDetails() {
   };
 
   /* =======================================================
+     HOURLY ADJUSTMENT CALCULATION
+     ======================================================= */
+
+  const getHourlyAdjustment =
+    (): HourlyAdjustment | null => {
+      if (
+        !checkInTime ||
+        !checkOutTime
+      ) {
+        return null;
+      }
+
+      if (
+        checkInDate !==
+        checkOutDate
+      ) {
+        return null;
+      }
+
+      const startMinutes =
+        getMinutesFromTime(
+          checkInTime
+        );
+
+      const endMinutes =
+        getMinutesFromTime(
+          checkOutTime
+        );
+
+      let duration =
+        endMinutes -
+        startMinutes;
+
+      /*
+       * Same-day hourly bookings are
+       * expected, so a negative duration
+       * is invalid rather than being
+       * treated as overnight.
+       */
+      if (duration <= 0) {
+        return null;
+      }
+
+      if (duration < 60) {
+        return null;
+      }
+
+      if (duration % 60 === 0) {
+        return null;
+      }
+
+      const completeHours =
+        Math.floor(
+          duration / 60
+        );
+
+      const remainingMinutes =
+        duration % 60;
+
+      const previousWholeHour =
+        completeHours * 60;
+
+      const nextWholeHour =
+        (completeHours + 1) * 60;
+
+      const distanceToPrevious =
+        duration -
+        previousWholeHour;
+
+      const distanceToNext =
+        nextWholeHour -
+        duration;
+
+      let adjustedDuration: number;
+
+      let direction:
+        | "EARLIER"
+        | "LATER";
+
+      /*
+       * Nearest complete hour wins.
+       *
+       * Example:
+       * 2h 1m -> 2h
+       * 2h 29m -> 2h
+       * 2h 31m -> 3h
+       *
+       * On an exact tie, choose the
+       * earlier checkout.
+       */
+      if (
+        distanceToPrevious <=
+        distanceToNext
+      ) {
+        adjustedDuration =
+          previousWholeHour;
+
+        direction = "EARLIER";
+      } else {
+        adjustedDuration =
+          nextWholeHour;
+
+        direction = "LATER";
+      }
+
+      /*
+       * Never allow a zero-hour
+       * adjustment.
+       */
+      if (
+        adjustedDuration < 60
+      ) {
+        adjustedDuration = 60;
+      }
+
+      const adjustedCheckoutMinutes =
+        startMinutes +
+        adjustedDuration;
+
+      /*
+       * We only support same-day
+       * hourly bookings.
+       */
+      if (
+        adjustedCheckoutMinutes >=
+        1440
+      ) {
+        return null;
+      }
+
+      return {
+        originalCheckIn:
+          checkInTime,
+
+        originalCheckOut:
+          checkOutTime,
+
+        adjustedCheckOut:
+          formatTimeValue(
+            adjustedCheckoutMinutes
+          ),
+
+        originalDurationMinutes:
+          duration,
+
+        adjustedDurationMinutes:
+          adjustedDuration,
+
+        remainingMinutes,
+
+        direction,
+      };
+    };
+
+  /* =======================================================
+     APPLY HOURLY ADJUSTMENT
+     ======================================================= */
+
+  const applyHourlyAdjustment =
+    () => {
+      if (!hourlyAdjustment) {
+        return;
+      }
+
+      const adjustedTime =
+        hourlyAdjustment.adjustedCheckOut;
+
+      setCheckOutTime(
+        adjustedTime
+      );
+
+      /*
+       * The previous quote was
+       * calculated using the old
+       * checkout time, therefore it
+       * MUST be invalidated.
+       */
+      clearQuote();
+
+      setHourlyAdjustment(null);
+
+      toast.success(
+        `Check-out adjusted to ${adjustedTime}. Please check the price again.`
+      );
+    };
+
+  /* =======================================================
+     CANCEL HOURLY ADJUSTMENT
+     ======================================================= */
+
+  const cancelHourlyAdjustment =
+    () => {
+      setHourlyAdjustment(null);
+    };
+
+  /* =======================================================
      HOURLY DURATION VALIDATION
      ======================================================= */
 
-  const validateHourlyDuration = (): boolean => {
-    if (
-      !checkInTime ||
-      !checkOutTime
-    ) {
-      toast.error(
-        "Please select check-in and check-out time"
-      );
+  const validateHourlyDuration =
+    (): boolean => {
+      if (
+        !checkInTime ||
+        !checkOutTime
+      ) {
+        toast.error(
+          "Please select check-in and check-out time"
+        );
 
-      return false;
-    }
+        return false;
+      }
 
-    if (
-      checkInDate !== checkOutDate
-    ) {
-      toast.error(
-        "Hourly booking must be on the same date"
-      );
+      if (
+        checkInDate !==
+        checkOutDate
+      ) {
+        toast.error(
+          "Hourly booking must be on the same date"
+        );
 
-      return false;
-    }
+        return false;
+      }
 
-    const [
-      checkInHour,
-      checkInMinute,
-    ] =
-      checkInTime
-        .split(":")
-        .map(Number);
+      const startMinutes =
+        getMinutesFromTime(
+          checkInTime
+        );
 
-    const [
-      checkOutHour,
-      checkOutMinute,
-    ] =
-      checkOutTime
-        .split(":")
-        .map(Number);
+      const endMinutes =
+        getMinutesFromTime(
+          checkOutTime
+        );
 
-    const startMinutes =
-      checkInHour * 60 +
-      checkInMinute;
+      const duration =
+        endMinutes -
+        startMinutes;
 
-    const endMinutes =
-      checkOutHour * 60 +
-      checkOutMinute;
+      if (duration <= 0) {
+        toast.error(
+          "Check-out time must be after check-in time"
+        );
 
-    const duration =
-      endMinutes - startMinutes;
+        return false;
+      }
 
-    if (duration <= 0) {
-      toast.error(
-        "Check-out time must be after check-in time"
-      );
+      if (duration < 60) {
+        toast.error(
+          "Hourly booking must be at least one hour"
+        );
 
-      return false;
-    }
+        return false;
+      }
 
-    if (duration < 60) {
-      toast.error(
-        "Hourly booking must be at least one hour"
-      );
+      /*
+       * Do not silently modify the
+       * user's input here.
+       *
+       * handleGetQuote() is responsible
+       * for opening the adjustment
+       * confirmation.
+       */
+      if (
+        duration % 60 !== 0
+      ) {
+        return false;
+      }
 
-      return false;
-    }
-
-    if (duration % 60 !== 0) {
-      toast.error(
-        "Hourly booking duration must be in whole hours"
-      );
-
-      return false;
-    }
-
-    return true;
-  };
+      return true;
+    };
 
   /* =======================================================
      GET PRICE QUOTE
      ======================================================= */
 
-    const handleGetQuote = async (room: Room) => {
-
-  // -------------------------------------------------------
-  // AUTH
-  // -------------------------------------------------------
-
-  if (!isAuthenticated) {
-    toast.error("Please login to continue");
-    setLocation("/login");
-    return;
-  }
-
-  // -------------------------------------------------------
-  // DATE VALIDATION
-  // -------------------------------------------------------
-
-  if (!checkInDate || !checkOutDate) {
-    toast.error(
-      "Please select check-in and check-out dates"
-    );
-    return;
-  }
-
-  // -------------------------------------------------------
-  // DAILY VALIDATION
-  // -------------------------------------------------------
-
-  if (bookingMode === "DAILY") {
-
-    if (checkOutDate <= checkInDate) {
+  const handleGetQuote = async (
+    room: Room
+  ) => {
+    if (!isAuthenticated) {
       toast.error(
-        "Check-out date must be after check-in date"
+        "Please login to continue"
       );
+
+      setLocation("/login");
+
       return;
     }
-  }
 
-  // -------------------------------------------------------
-  // HOURLY VALIDATION
-  // -------------------------------------------------------
+    if (
+      !checkInDate ||
+      !checkOutDate
+    ) {
+      toast.error(
+        "Please select check-in and check-out dates"
+      );
 
-  if (bookingMode === "HOURLY") {
-
-    if (!validateHourlyDuration()) {
       return;
     }
-  }
 
-  // -------------------------------------------------------
-  // CREATE QUOTE
-  // -------------------------------------------------------
-
-  try {
-
-    setQuoteLoading(true);
-    setQuote(null);
-    setSelectedRoomType(room.type);
-
-    // IMPORTANT:
-    // request MUST be declared before using it
-    const request: BookingRequest = {
-      hotelId: Number(hotel.id),
-
-      roomType: room.type,
-
-      checkInDate: checkInDate,
-
-      checkOutDate: checkOutDate,
-
-      adultCount: adults,
-
-      childCount: children,
-
-      bookingMode: bookingMode,
-    };
-
-    // -----------------------------------------------------
-    // HOURLY TIME
-    // -----------------------------------------------------
-
-    if (bookingMode === "HOURLY") {
-
-      request.checkInTime = checkInTime;
-
-      request.checkOutTime = checkOutTime;
-    }
-
-    console.log(
-      "QUOTE REQUEST:",
-      request
-    );
-
-    // -----------------------------------------------------
-    // SEPARATE BACKEND APIs
-    // -----------------------------------------------------
-
-    const response =
+    if (
       bookingMode === "DAILY"
-        ? await bookingsApi.createDailyQuote(request)
-        : await bookingsApi.createHourlyQuote(request);
+    ) {
+      if (
+        checkOutDate <=
+        checkInDate
+      ) {
+        toast.error(
+          "Check-out date must be after check-in date"
+        );
 
-    const data = response.data;
+        return;
+      }
+    }
 
-    console.log(
-      "QUOTE RESPONSE:",
-      data
-    );
+    /* =====================================================
+       HOURLY VALIDATION + ADJUSTMENT
+       ===================================================== */
 
-    setQuote(data);
+    if (
+      bookingMode === "HOURLY"
+    ) {
+      if (
+        !checkInTime ||
+        !checkOutTime
+      ) {
+        toast.error(
+          "Please select check-in and check-out time"
+        );
 
-  } catch (error: any) {
+        return;
+      }
 
-    console.error(
-      "Quote creation failed:",
-      error
-    );
+      if (
+        checkInDate !==
+        checkOutDate
+      ) {
+        toast.error(
+          "Hourly booking must be on the same date"
+        );
 
-    setQuote(null);
+        return;
+      }
 
-    toast.error(
-      error?.response?.data?.message ||
-      "Unable to calculate price"
-    );
+      const startMinutes =
+        getMinutesFromTime(
+          checkInTime
+        );
 
-  } finally {
+      const endMinutes =
+        getMinutesFromTime(
+          checkOutTime
+        );
 
-    setQuoteLoading(false);
+      const duration =
+        endMinutes -
+        startMinutes;
 
-  }
-};
+      if (duration <= 0) {
+        toast.error(
+          "Check-out time must be after check-in time"
+        );
+
+        return;
+      }
+
+      if (duration < 60) {
+        toast.error(
+          "Hourly booking must be at least one hour"
+        );
+
+        return;
+      }
+
+      /*
+       * IMPORTANT:
+       *
+       * Do not call the backend when
+       * the duration contains minutes.
+       *
+       * First ask the user whether
+       * the checkout time should be
+       * adjusted.
+       */
+      if (
+        duration % 60 !== 0
+      ) {
+        const adjustment =
+          getHourlyAdjustment();
+
+        if (adjustment) {
+          setHourlyAdjustment(
+            adjustment
+          );
+
+          return;
+        }
+
+        toast.error(
+          "Hourly booking duration must be in whole hours"
+        );
+
+        return;
+      }
+
+      /*
+       * Final validation for exact
+       * whole-hour duration.
+       */
+      if (
+        !validateHourlyDuration()
+      ) {
+        return;
+      }
+    }
+
+    try {
+      setQuoteLoading(true);
+
+      setQuote(null);
+
+      setSelectedRoomType(
+        room.type
+      );
+
+      const request: BookingRequest =
+        {
+          hotelId:
+            Number(hotel.id),
+
+          roomType:
+            room.type,
+
+          checkInDate:
+            checkInDate,
+
+          checkOutDate:
+            checkOutDate,
+
+          adultCount:
+            adults,
+
+          childCount:
+            children,
+
+          bookingMode:
+            bookingMode,
+        };
+
+      if (
+        bookingMode ===
+        "HOURLY"
+      ) {
+        request.checkInTime =
+          checkInTime;
+
+        request.checkOutTime =
+          checkOutTime;
+      }
+
+      console.log(
+        "QUOTE REQUEST:",
+        request
+      );
+
+      const response =
+        bookingMode ===
+        "DAILY"
+          ? await bookingsApi.createDailyQuote(
+              request
+            )
+          : await bookingsApi.createHourlyQuote(
+              request
+            );
+
+      const data =
+        response.data;
+
+      console.log(
+        "QUOTE RESPONSE:",
+        data
+      );
+
+      setQuote(data);
+    } catch (error: any) {
+      console.error(
+        "Quote creation failed:",
+        error
+      );
+
+      setQuote(null);
+
+      toast.error(
+        error?.response?.data
+          ?.message ||
+          "Unable to calculate price"
+      );
+    } finally {
+      setQuoteLoading(false);
+    }
+  };
 
   /* =======================================================
      INITIALIZE BOOKING
@@ -566,7 +1106,6 @@ export default function HotelDetails() {
   const handleBooking = async (
     room: Room
   ) => {
-
     if (!quote) {
       toast.error(
         "Please check the price first"
@@ -586,40 +1125,111 @@ export default function HotelDetails() {
       return;
     }
 
-    try {
+    /*
+     * Final hourly guard.
+     *
+     * This prevents an invalid
+     * duration from reaching
+     * bookingsApi.init() even if
+     * something changes between
+     * quote creation and booking.
+     */
+    if (
+      bookingMode ===
+      "HOURLY"
+    ) {
+      if (
+        !checkInTime ||
+        !checkOutTime
+      ) {
+        toast.error(
+          "Please select check-in and check-out time"
+        );
 
-      const request: BookingRequest = {
-
-        hotelId:
-          Number(hotel.id),
-
-        quoteId:
-          quote.quoteId,
-
-        roomType:
-          room.type,
-
-        checkInDate,
-
-        checkOutDate,
-
-        adultCount:
-          adults,
-
-        childCount:
-          children,
-
-        bookingMode,
-      };
-
-      /* ---------------------------------------------
-         TIME ONLY FOR HOURLY
-         --------------------------------------------- */
+        return;
+      }
 
       if (
-        bookingMode === "HOURLY"
+        checkInDate !==
+        checkOutDate
       ) {
+        toast.error(
+          "Hourly booking must be on the same date"
+        );
 
+        return;
+      }
+
+      const startMinutes =
+        getMinutesFromTime(
+          checkInTime
+        );
+
+      const endMinutes =
+        getMinutesFromTime(
+          checkOutTime
+        );
+
+      const duration =
+        endMinutes -
+        startMinutes;
+
+      if (duration <= 0) {
+        toast.error(
+          "Check-out time must be after check-in time"
+        );
+
+        return;
+      }
+
+      if (duration < 60) {
+        toast.error(
+          "Hourly booking must be at least one hour"
+        );
+
+        return;
+      }
+
+      if (
+        duration % 60 !== 0
+      ) {
+        toast.error(
+          "Please use a whole-hour duration before reserving the room"
+        );
+
+        return;
+      }
+    }
+
+    try {
+      const request: BookingRequest =
+        {
+          hotelId:
+            Number(hotel.id),
+
+          quoteId:
+            quote.quoteId,
+
+          roomType:
+            room.type,
+
+          checkInDate,
+
+          checkOutDate,
+
+          adultCount:
+            adults,
+
+          childCount:
+            children,
+
+          bookingMode,
+        };
+
+      if (
+        bookingMode ===
+        "HOURLY"
+      ) {
         request.checkInTime =
           checkInTime;
 
@@ -627,24 +1237,39 @@ export default function HotelDetails() {
           checkOutTime;
       }
 
+      console.log(
+        "INIT BOOKING REQUEST:",
+        request
+      );
+
       const { data } =
-        await bookingsApi.init(request);
+        await bookingsApi.init(
+          request
+        );
 
-      console.log("INIT BOOKING RESPONSE:", data);
-      console.log("BOOKING ID:", data.id);
+      console.log(
+        "INIT BOOKING RESPONSE:",
+        data
+      );
 
-      setLocation(`/booking/${data.id}`);
+      console.log(
+        "BOOKING ID:",
+        data.id
+      );
 
+      setLocation(
+        `/booking/${data.id}`
+      );
     } catch (error: any) {
-
       console.error(
         "Failed to initiate booking:",
         error
       );
 
       toast.error(
-        error?.response?.data?.message ||
-        "Failed to initiate booking"
+        error?.response?.data
+          ?.message ||
+          "Failed to initiate booking"
       );
     }
   };
@@ -654,16 +1279,11 @@ export default function HotelDetails() {
      ======================================================= */
 
   if (loading) {
-
     return (
       <MainLayout>
-
         <div className="container py-20">
-
           <HotelCardSkeleton />
-
         </div>
-
       </MainLayout>
     );
   }
@@ -673,22 +1293,17 @@ export default function HotelDetails() {
      ======================================================= */
 
   if (!hotel) {
-
     return (
       <MainLayout>
-
-        <div className="
-          container
-          py-20
-          text-center
-        ">
-
-          <h1 className="
-            font-serif
-            text-3xl
-            text-espresso
-            mb-4
-          ">
+        <div className="container py-20 text-center">
+          <h1
+            className="
+              mb-4
+              font-serif
+              text-3xl
+              text-espresso
+            "
+          >
             Hotel Not Found
           </h1>
 
@@ -697,19 +1312,45 @@ export default function HotelDetails() {
               setLocation("/")
             }
             className="
+              font-medium
               text-bronze
               hover:text-bronze-dark
-              font-medium
             "
           >
             Go back home
           </button>
-
         </div>
-
       </MainLayout>
     );
   }
+
+  /* =======================================================
+     SAFE HOTEL IMAGES
+     ======================================================= */
+
+  const hotelImages =
+    Array.isArray(
+      hotel.images
+    ) &&
+    hotel.images.length > 0
+      ? hotel.images
+      : [];
+
+  /*
+   * Main gallery shows a maximum
+   * of 5 images.
+   *
+   * Fullscreen gallery still
+   * contains ALL hotel images.
+   */
+  const visibleGalleryImages =
+    hotelImages.slice(0, 5);
+
+  const remainingImageCount =
+    Math.max(
+      hotelImages.length - 5,
+      0
+    );
 
   /* =======================================================
      RENDER
@@ -717,16 +1358,11 @@ export default function HotelDetails() {
 
   return (
     <MainLayout>
-
       {/* ===================================================
           BACK
           =================================================== */}
 
-      <div className="
-        container
-        pt-6
-      ">
-
+      <div className="container pt-6">
         <button
           onClick={() =>
             setLocation(
@@ -738,312 +1374,362 @@ export default function HotelDetails() {
             items-center
             gap-2
             text-muted-foreground
-            hover:text-espresso
             transition-colors
+            hover:text-espresso
           "
         >
+          <ArrowLeft className="h-4 w-4" />
 
-          <ArrowLeft className="
-            w-4
-            h-4
-          " />
-
-          <span className="
-            text-sm
-            font-medium
-          ">
+          <span className="text-sm font-medium">
             Back to results
           </span>
-
         </button>
-
       </div>
 
       {/* ===================================================
-          GALLERY
+          HOTEL GALLERY
           =================================================== */}
 
-      <section className="
-        container
-        mt-4
-      ">
-
-        <div className="
-          grid
-          grid-cols-1
-          md:grid-cols-4
-          gap-2
-          rounded-2xl
-          overflow-hidden
-        ">
-
+      {hotelImages.length >
+        0 && (
+        <section className="container mt-4">
           <div
             className="
-              md:col-span-2
-              md:row-span-2
-              relative
-              cursor-pointer
-              group
+              grid
+              grid-cols-2
+              gap-2
+              overflow-hidden
+              rounded-2xl
+              md:grid-cols-4
+              md:grid-rows-2
+              md:h-[520px]
             "
-            onClick={() =>
-              setGalleryOpen(true)
-            }
           >
-
-            <img
-              src={
-                hotel.images[
-                currentImage
-                ]
-              }
-              alt={hotel.name}
-              className="
-                w-full
-                h-64
-                md:h-full
-                object-cover
-                group-hover:scale-105
-                transition-transform
-                duration-500
-              "
-            />
-
-          </div>
-
-          {hotel.images
-            .slice(1, 3)
-            .map(
+            {visibleGalleryImages.map(
               (
-                img: string,
-                i: number
-              ) => (
+                image: string,
+                index: number
+              ) => {
+                const isMain =
+                  index === 0;
 
-                <div
-                  key={i}
-                  className="
-                    relative
-                    cursor-pointer
-                    group
-                  "
-                  onClick={() => {
-                    setCurrentImage(
-                      i + 1
-                    );
+                const isLastVisible =
+                  index ===
+                  visibleGalleryImages.length -
+                    1;
 
-                    setGalleryOpen(
-                      true
-                    );
-                  }}
-                >
+                const showRemaining =
+                  isLastVisible &&
+                  remainingImageCount >
+                    0;
 
-                  <img
-                    src={img}
-                    alt={`${hotel.name}-${i}`}
-                    className="
-                      w-full
-                      h-40
-                      md:h-48
-                      object-cover
-                      group-hover:scale-105
-                      transition-transform
-                      duration-500
-                    "
-                  />
+                return (
+                  <div
+                    key={`${image}-${index}`}
+                    onClick={() => {
+                      setCurrentImage(
+                        index
+                      );
 
-                </div>
+                      setGalleryOpen(
+                        true
+                      );
+                    }}
+                    className={`
+                      group
+                      relative
+                      cursor-pointer
+                      overflow-hidden
+                      bg-cream
 
-              )
+                      ${
+                        isMain
+                          ? "col-span-2 row-span-2 h-[320px] md:h-auto"
+                          : "col-span-1 h-[180px] md:h-auto"
+                      }
+                    `}
+                  >
+                    <img
+                      src={image}
+                      alt={`${hotel.name} - photo ${
+                        index + 1
+                      }`}
+                      loading={
+                        index === 0
+                          ? "eager"
+                          : "lazy"
+                      }
+                      className="
+                        block
+                        h-full
+                        w-full
+                        object-cover
+                        transition-transform
+                        duration-500
+                        ease-out
+                        group-hover:scale-[1.04]
+                      "
+                    />
+
+                    <div
+                      className="
+                        absolute
+                        inset-0
+                        bg-black/0
+                        transition-colors
+                        duration-300
+                        group-hover:bg-black/10
+                      "
+                    />
+
+                    {showRemaining && (
+                      <div
+                        className="
+                          absolute
+                          inset-0
+                          flex
+                          items-center
+                          justify-center
+                          bg-black/35
+                          transition-colors
+                          duration-300
+                          group-hover:bg-black/45
+                        "
+                      >
+                        <span
+                          className="
+                            rounded-full
+                            bg-black/55
+                            px-4
+                            py-2
+                            text-sm
+                            font-medium
+                            text-white
+                            backdrop-blur-sm
+                          "
+                        >
+                          +
+                          {
+                            remainingImageCount
+                          }{" "}
+                          {remainingImageCount ===
+                          1
+                            ? "photo"
+                            : "photos"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
             )}
-
-        </div>
-
-      </section>
+          </div>
+        </section>
+      )}
 
       {/* ===================================================
           MAIN CONTENT
           =================================================== */}
 
-      <section className="
-        container
-        mt-8
-        pb-16
-      ">
-
-        <div className="
-          grid
-          grid-cols-1
-          lg:grid-cols-3
-          gap-8
-        ">
-
+      <section
+        className="
+          container
+          mt-8
+          pb-16
+        "
+      >
+        <div
+          className="
+            grid
+            grid-cols-1
+            gap-8
+            lg:grid-cols-3
+          "
+        >
           {/* =================================================
               LEFT
               ================================================= */}
 
-          <div className="
-            lg:col-span-2
-            space-y-8
-          ">
-
+          <div
+            className="
+              space-y-8
+              lg:col-span-2
+            "
+          >
             {/* HOTEL HEADER */}
 
             <div>
-
-              <div className="
-                flex
-                items-start
-                justify-between
-                gap-4
-              ">
-
+              <div
+                className="
+                  flex
+                  items-start
+                  justify-between
+                  gap-4
+                "
+              >
                 <div>
-
-                  <h1 className="
-                    font-serif
-                    text-3xl
-                    md:text-4xl
-                    font-bold
-                    text-espresso
-                  ">
+                  <h1
+                    className="
+                      font-serif
+                      text-3xl
+                      font-bold
+                      text-espresso
+                      md:text-4xl
+                    "
+                  >
                     {hotel.name}
                   </h1>
 
-                  <div className="
-                    flex
-                    items-center
-                    gap-2
-                    mt-2
-                  ">
+                  <div
+                    className="
+                      mt-2
+                      flex
+                      items-center
+                      gap-2
+                    "
+                  >
+                    <MapPin
+                      className="
+                        h-4
+                        w-4
+                        text-bronze
+                      "
+                    />
 
-                    <MapPin className="
-                      w-4
-                      h-4
-                      text-bronze
-                    " />
-
-                    <span className="
-                      text-sm
-                      text-muted-foreground
-                    ">
-                      {hotel.location.address}
+                    <span
+                      className="
+                        text-sm
+                        text-muted-foreground
+                      "
+                    >
+                      {hotel.location
+                        ?.address ||
+                        hotel.city}
                     </span>
-
                   </div>
-
                 </div>
 
-                <div className="
-                  flex
-                  items-center
-                  gap-1
-                  bg-cream
-                  px-3
-                  py-1.5
-                  rounded-full
-                  shrink-0
-                ">
+                <div
+                  className="
+                    flex
+                    shrink-0
+                    items-center
+                    gap-1
+                    rounded-full
+                    bg-cream
+                    px-3
+                    py-1.5
+                  "
+                >
+                  <Star
+                    className="
+                      h-4
+                      w-4
+                      fill-bronze
+                      text-bronze
+                    "
+                  />
 
-                  <Star className="
-                    w-4
-                    h-4
-                    fill-bronze
-                    text-bronze
-                  " />
-
-                  <span className="
-                    font-semibold
-                    text-espresso
-                  ">
-                    {hotel.rating.toFixed(1)}
+                  <span
+                    className="
+                      font-semibold
+                      text-espresso
+                    "
+                  >
+                    {Number(
+                      hotel.rating || 0
+                    ).toFixed(1)}
                   </span>
 
-                  <span className="
-                    text-xs
-                    text-muted-foreground
-                    ml-1
-                  ">
-                    ({hotel.reviewCount} reviews)
+                  <span
+                    className="
+                      ml-1
+                      text-xs
+                      text-muted-foreground
+                    "
+                  >
+                    (
+                    {hotel.reviewCount ||
+                      0}{" "}
+                    reviews)
                   </span>
-
                 </div>
-
               </div>
-
             </div>
 
             {/* DESCRIPTION */}
 
             <div>
-
-              <p className="
-                text-espresso/80
-                leading-relaxed
-              ">
+              <p
+                className="
+                  leading-relaxed
+                  text-espresso/80
+                "
+              >
                 {hotel.description}
               </p>
-
             </div>
 
             {/* AMENITIES */}
 
             <div>
-
-              <h2 className="
-                font-serif
-                text-xl
-                font-semibold
-                text-espresso
-                mb-4
-              ">
+              <h2
+                className="
+                  mb-4
+                  font-serif
+                  text-xl
+                  font-semibold
+                  text-espresso
+                "
+              >
                 Amenities
               </h2>
 
-              <div className="
-                grid
-                grid-cols-2
-                md:grid-cols-4
-                gap-3
-              ">
-
-                {hotel.amenities.map(
+              <div
+                className="
+                  grid
+                  grid-cols-2
+                  gap-3
+                  md:grid-cols-4
+                "
+              >
+                {hotel.amenities?.map(
                   (
                     amenity: string
                   ) => (
-
                     <div
                       key={amenity}
                       className="
                         flex
                         items-center
                         gap-2
-                        bg-cream
                         rounded-xl
+                        bg-cream
                         px-4
                         py-3
                       "
                     >
+                      <Check
+                        className="
+                          h-4
+                          w-4
+                          shrink-0
+                          text-bronze
+                        "
+                      />
 
-                      <Check className="
-                        w-4
-                        h-4
-                        text-bronze
-                        shrink-0
-                      " />
-
-                      <span className="
-                        text-sm
-                        text-espresso
-                      ">
+                      <span
+                        className="
+                          text-sm
+                          text-espresso
+                        "
+                      >
                         {amenity}
                       </span>
-
                     </div>
-
                   )
                 )}
-
               </div>
-
             </div>
 
             {/* =================================================
@@ -1051,46 +1737,44 @@ export default function HotelDetails() {
                 ================================================= */}
 
             <div>
-
-              <h2 className="
-                font-serif
-                text-xl
-                font-semibold
-                text-espresso
-                mb-4
-              ">
+              <h2
+                className="
+                  mb-4
+                  font-serif
+                  text-xl
+                  font-semibold
+                  text-espresso
+                "
+              >
                 Available Room Types
               </h2>
 
-              {rooms.length === 0 ? (
-
-                <div className="
-                  bg-white
-                  rounded-xl
-                  p-8
-                  text-center
-                  shadow-warm
-                ">
-
-                  <p className="
-                    text-muted-foreground
-                  ">
+              {uniqueRoomTypes.length ===
+              0 ? (
+                <div
+                  className="
+                    rounded-xl
+                    bg-white
+                    p-8
+                    text-center
+                    shadow-warm
+                  "
+                >
+                  <p className="text-muted-foreground">
                     No rooms available.
                   </p>
-
                 </div>
-
               ) : (
-
-                <div className="
-                  space-y-4
-                ">
-
-                  {rooms.map(
+                <div className="space-y-4">
+                  {uniqueRoomTypes.map(
                     (
                       room,
                       index
                     ) => {
+                      const pricing =
+                        pricingByRoomType.get(
+                          room.type
+                        );
 
                       const isSelected =
                         selectedRoomType ===
@@ -1100,12 +1784,36 @@ export default function HotelDetails() {
                         isSelected &&
                         quote &&
                         quote.roomType ===
-                        room.type;
+                          room.type;
+
+                      const dailyPrice =
+                        formatPrice(
+                          pricing?.dailyPrice
+                        );
+
+                      const hourlyPrice =
+                        formatPrice(
+                          pricing?.hourlyPrice
+                        );
+
+                      const roomImage =
+                        ROOM_TYPE_IMAGES[
+                          room.type
+                        ];
+
+                      const totalRooms =
+                        pricing?.totalRooms ??
+                        uniqueRoomTypes.filter(
+                          (item) =>
+                            item.type ===
+                            room.type
+                        ).length;
 
                       return (
-
                         <motion.div
-                          key={room.type}
+                          key={
+                            room.type
+                          }
                           initial={{
                             opacity: 0,
                             y: 10,
@@ -1119,216 +1827,434 @@ export default function HotelDetails() {
                           }}
                           transition={{
                             delay:
-                              index * 0.1,
+                              index *
+                              0.1,
                           }}
                           className={`
-                            bg-white
-                            rounded-xl
                             overflow-hidden
-                            shadow-warm
+                            rounded-xl
                             border
-                            ${isSelected
-                              ? "border-bronze"
-                              : "border-warm-stone/20"
+                            bg-white
+                            shadow-warm
+
+                            ${
+                              isSelected
+                                ? "border-bronze"
+                                : "border-warm-stone/20"
                             }
                           `}
                         >
+                          <div
+                            className="
+                              flex
+                              flex-col
+                              md:flex-row
+                            "
+                          >
+                            {/* ROOM IMAGE */}
 
-                          <div className="
-                            flex
-                            flex-col
-                            md:flex-row
-                          ">
-
-                            {/* IMAGE */}
-
-                            <img
-                              src={
-                                room.image ||
-                                hotel.images[0]
-                              }
-                              alt={room.type}
+                            <div
                               className="
+                                relative
+                                h-52
                                 w-full
+                                shrink-0
+                                overflow-hidden
+                                md:h-auto
                                 md:w-64
-                                h-48
-                                object-cover
                               "
-                            />
+                            >
+                              <img
+                                src={
+                                  roomImage
+                                }
+                                alt={formatRoomType(
+                                  room.type
+                                )}
+                                className="
+                                  h-full
+                                  w-full
+                                  object-cover
+                                  transition-transform
+                                  duration-500
+                                  hover:scale-105
+                                "
+                              />
+                            </div>
 
                             {/* DETAILS */}
 
-                            <div className="
-                              flex-1
-                              p-5
-                            ">
-
-                              <div className="
-                                flex
-                                items-start
-                                justify-between
-                                gap-4
-                              ">
-
+                            <div
+                              className="
+                                flex-1
+                                p-5
+                              "
+                            >
+                              <div
+                                className="
+                                  flex
+                                  items-start
+                                  justify-between
+                                  gap-4
+                                "
+                              >
                                 <div>
-
-                                  <h3 className="
-                                    font-serif
-                                    text-xl
-                                    font-semibold
-                                    text-espresso
-                                  ">
-                                    {room.type}
+                                  <h3
+                                    className="
+                                      font-serif
+                                      text-xl
+                                      font-semibold
+                                      text-espresso
+                                    "
+                                  >
+                                    {formatRoomType(
+                                      room.type
+                                    )}
                                   </h3>
 
-                                  <p className="
-                                    text-sm
-                                    text-muted-foreground
-                                    mt-2
-                                  ">
-                                    Up to{" "}
-                                    {room.capacity}{" "}
-                                    guests
-                                  </p>
+                                  <div
+                                    className="
+                                      mt-3
+                                      flex
+                                      flex-wrap
+                                      items-center
+                                      gap-x-4
+                                      gap-y-2
+                                    "
+                                  >
+                                    <div
+                                      className="
+                                        flex
+                                        items-center
+                                        gap-1.5
+                                        text-sm
+                                        text-muted-foreground
+                                      "
+                                    >
+                                      <Users
+                                        className="
+                                          h-4
+                                          w-4
+                                          text-bronze
+                                        "
+                                      />
 
+                                      <span>
+                                        Up to{" "}
+                                        {pricing?.capacity ||
+                                          room.capacity}{" "}
+                                        guests
+                                      </span>
+                                    </div>
+
+                                    {totalRooms >
+                                      0 && (
+                                      <span
+                                        className="
+                                          text-sm
+                                          text-muted-foreground
+                                        "
+                                      >
+                                        {
+                                          totalRooms
+                                        }{" "}
+                                        {totalRooms ===
+                                        1
+                                          ? "room"
+                                          : "rooms"}{" "}
+                                        available
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
 
-                                <div className="
-                                  text-right
-                                  shrink-0
-                                ">
+                                {/* PRICE */}
 
+                                <div
+                                  className="
+                                    shrink-0
+                                    text-right
+                                  "
+                                >
                                   {!isQuoted ? (
-
                                     <>
-                                      <p className="
-                                        text-sm
-                                        text-muted-foreground
-                                      ">
-                                        Starting from
+                                      <p
+                                        className="
+                                          text-sm
+                                          text-muted-foreground
+                                        "
+                                      >
+                                        {bookingMode ===
+                                        "HOURLY"
+                                          ? "From"
+                                          : "Starting from"}
                                       </p>
 
-                                      <p className="
-                                        text-2xl
-                                        font-bold
-                                        text-espresso
-                                      ">
-                                        ₹
-                                        {Number(
-                                          room.price
-                                        ).toLocaleString()}
-                                      </p>
+                                      {bookingMode ===
+                                      "HOURLY" ? (
+                                        hourlyPrice ? (
+                                          <p
+                                            className="
+                                              text-2xl
+                                              font-bold
+                                              text-espresso
+                                            "
+                                          >
+                                            ₹
+                                            {
+                                              hourlyPrice
+                                            }
+
+                                            <span
+                                              className="
+                                                ml-1
+                                                text-xs
+                                                font-normal
+                                                text-muted-foreground
+                                              "
+                                            >
+                                              / hour
+                                            </span>
+                                          </p>
+                                        ) : (
+                                          <p
+                                            className="
+                                              text-sm
+                                              text-muted-foreground
+                                            "
+                                          >
+                                            Price unavailable
+                                          </p>
+                                        )
+                                      ) : dailyPrice ? (
+                                        <p
+                                          className="
+                                            text-2xl
+                                            font-bold
+                                            text-espresso
+                                          "
+                                        >
+                                          ₹
+                                          {
+                                            dailyPrice
+                                          }
+
+                                          <span
+                                            className="
+                                              ml-1
+                                              text-xs
+                                              font-normal
+                                              text-muted-foreground
+                                            "
+                                          >
+                                            / night
+                                          </span>
+                                        </p>
+                                      ) : (
+                                        <p
+                                          className="
+                                            text-sm
+                                            text-muted-foreground
+                                          "
+                                        >
+                                          Price unavailable
+                                        </p>
+                                      )}
                                     </>
-
                                   ) : (
-
                                     <>
-                                      <p className="
-                                        text-sm
-                                        text-muted-foreground
-                                      ">
+                                      <p
+                                        className="
+                                          text-sm
+                                          text-muted-foreground
+                                        "
+                                      >
                                         Final price
                                       </p>
 
-                                      <p className="
-                                        text-2xl
-                                        font-bold
-                                        text-bronze
-                                      ">
+                                      <p
+                                        className="
+                                          text-2xl
+                                          font-bold
+                                          text-bronze
+                                        "
+                                      >
                                         ₹
-                                        {Number(
+                                        {formatPrice(
                                           quote?.finalPrice
-                                        ).toLocaleString()}
+                                        ) ||
+                                          "—"}
                                       </p>
                                     </>
-
                                   )}
-
                                 </div>
-
                               </div>
 
-                              {/* QUOTE */}
+                              {/* STATIC PRICING INFO */}
+
+                              {!isQuoted &&
+                                pricing && (
+                                  <div
+                                    className="
+                                      mt-4
+                                      flex
+                                      flex-wrap
+                                      gap-3
+                                    "
+                                  >
+                                    {dailyPrice && (
+                                      <div
+                                        className="
+                                          rounded-lg
+                                          bg-cream
+                                          px-3
+                                          py-2
+                                        "
+                                      >
+                                        <p
+                                          className="
+                                            text-[11px]
+                                            text-muted-foreground
+                                          "
+                                        >
+                                          Daily
+                                        </p>
+
+                                        <p
+                                          className="
+                                            text-sm
+                                            font-semibold
+                                            text-espresso
+                                          "
+                                        >
+                                          ₹
+                                          {
+                                            dailyPrice
+                                          }
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {hourlyPrice && (
+                                      <div
+                                        className="
+                                          rounded-lg
+                                          bg-cream
+                                          px-3
+                                          py-2
+                                        "
+                                      >
+                                        <p
+                                          className="
+                                            text-[11px]
+                                            text-muted-foreground
+                                          "
+                                        >
+                                          Hourly
+                                        </p>
+
+                                        <p
+                                          className="
+                                            text-sm
+                                            font-semibold
+                                            text-espresso
+                                          "
+                                        >
+                                          ₹
+                                          {
+                                            hourlyPrice
+                                          }
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                              {/* QUOTE DETAILS */}
 
                               {isQuoted && (
-
-                                <div className="
-                                  mt-4
-                                  rounded-xl
-                                  bg-cream
-                                  p-4
-                                ">
-
-                                  <div className="
-                                    flex
-                                    items-center
-                                    justify-between
-                                    gap-4
-                                  ">
-
+                                <div
+                                  className="
+                                    mt-4
+                                    rounded-xl
+                                    bg-cream
+                                    p-4
+                                  "
+                                >
+                                  <div
+                                    className="
+                                      flex
+                                      items-center
+                                      justify-between
+                                      gap-4
+                                    "
+                                  >
                                     <div>
-
-                                      <p className="
-                                        text-xs
-                                        text-muted-foreground
-                                      ">
+                                      <p
+                                        className="
+                                          text-xs
+                                          text-muted-foreground
+                                        "
+                                      >
                                         Dynamic price
                                       </p>
 
-                                      <p className="
-                                        font-semibold
-                                        text-espresso
-                                      ">
+                                      <p
+                                        className="
+                                          font-semibold
+                                          text-espresso
+                                        "
+                                      >
                                         ₹
-                                        {Number(
+                                        {formatPrice(
                                           quote?.finalPrice
-                                        ).toLocaleString()}
+                                        ) ||
+                                          "—"}
                                       </p>
-
                                     </div>
 
-                                    <span className="
-                                      rounded-full
-                                      bg-bronze/10
-                                      px-3
-                                      py-1
-                                      text-xs
-                                      font-medium
-                                      text-bronze
-                                    ">
+                                    <span
+                                      className="
+                                        rounded-full
+                                        bg-bronze/10
+                                        px-3
+                                        py-1
+                                        text-xs
+                                        font-medium
+                                        text-bronze
+                                      "
+                                    >
                                       Quote created
                                     </span>
-
                                   </div>
-
                                 </div>
-
                               )}
 
                               {/* ACTION */}
 
-                              <div className="
-                                mt-5
-                                flex
-                                flex-col
-                                sm:flex-row
-                                sm:items-center
-                                sm:justify-between
-                                gap-3
-                              ">
-
-                                <p className="
-                                  text-xs
-                                  text-muted-foreground
-                                ">
-                                  Price depends on
-                                  your selected
-                                  dates, time and
-                                  booking mode.
+                              <div
+                                className="
+                                  mt-5
+                                  flex
+                                  flex-col
+                                  gap-3
+                                  sm:flex-row
+                                  sm:items-center
+                                  sm:justify-between
+                                "
+                              >
+                                <p
+                                  className="
+                                    text-xs
+                                    text-muted-foreground
+                                  "
+                                >
+                                  Final price depends on
+                                  your selected dates,
+                                  time and booking mode.
                                 </p>
 
                                 {!isQuoted ? (
-
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -1341,27 +2267,25 @@ export default function HotelDetails() {
                                     }
                                     className="
                                       shrink-0
+                                      rounded-xl
                                       bg-bronze
-                                      hover:bg-bronze-dark
-                                      disabled:opacity-50
-                                      disabled:cursor-not-allowed
-                                      text-white
-                                      font-medium
                                       px-6
                                       py-2.5
-                                      rounded-xl
-                                      transition-all
                                       text-sm
+                                      font-medium
+                                      text-white
+                                      transition-all
+                                      hover:bg-bronze-dark
+                                      disabled:cursor-not-allowed
+                                      disabled:opacity-50
                                     "
                                   >
                                     {quoteLoading &&
-                                      isSelected
+                                    isSelected
                                       ? "Calculating..."
                                       : "Check Price"}
                                   </button>
-
                                 ) : (
-
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -1371,38 +2295,29 @@ export default function HotelDetails() {
                                     }
                                     className="
                                       shrink-0
+                                      rounded-xl
                                       bg-bronze
-                                      hover:bg-bronze-dark
-                                      text-white
-                                      font-semibold
                                       px-6
                                       py-2.5
-                                      rounded-xl
-                                      transition-all
                                       text-sm
+                                      font-semibold
+                                      text-white
+                                      transition-all
+                                      hover:bg-bronze-dark
                                     "
                                   >
                                     Reserve Room
                                   </button>
-
                                 )}
-
                               </div>
-
                             </div>
-
                           </div>
-
                         </motion.div>
-
                       );
                     }
                   )}
-
                 </div>
-
               )}
-
             </div>
 
             {/* =================================================
@@ -1410,167 +2325,171 @@ export default function HotelDetails() {
                 ================================================= */}
 
             <div>
-
-              <h2 className="
-                font-serif
-                text-xl
-                font-semibold
-                text-espresso
-                mb-4
-              ">
+              <h2
+                className="
+                  mb-4
+                  font-serif
+                  text-xl
+                  font-semibold
+                  text-espresso
+                "
+              >
                 Guest Reviews
               </h2>
 
               {reviewsLoading ? (
-
-                <div className="
-                  bg-white
-                  rounded-xl
-                  p-8
-                  text-center
-                  shadow-warm
-                ">
+                <div
+                  className="
+                    rounded-xl
+                    bg-white
+                    p-8
+                    text-center
+                    shadow-warm
+                  "
+                >
                   Loading reviews...
                 </div>
+              ) : reviews.length ===
+                0 ? (
+                <div
+                  className="
+                    rounded-xl
+                    bg-white
+                    p-8
+                    text-center
+                    shadow-warm
+                  "
+                >
+                  <MessageSquare
+                    className="
+                      mx-auto
+                      mb-2
+                      h-8
+                      w-8
+                      text-muted-foreground
+                    "
+                  />
 
-              ) : reviews.length === 0 ? (
-
-                <div className="
-                  bg-white
-                  rounded-xl
-                  p-8
-                  text-center
-                  shadow-warm
-                ">
-
-                  <MessageSquare className="
-                    w-8
-                    h-8
-                    text-muted-foreground
-                    mx-auto
-                    mb-2
-                  " />
-
-                  <p className="
-                    text-muted-foreground
-                  ">
+                  <p className="text-muted-foreground">
                     No reviews yet.
                   </p>
-
                 </div>
-
               ) : (
-
-                <div className="
-                  space-y-4
-                ">
-
+                <div className="space-y-4">
                   {reviews.map(
                     (review) => (
-
                       <div
                         key={
                           review.reviewId
                         }
                         className="
-                          bg-white
                           rounded-xl
-                          p-6
-                          shadow-warm
                           border
                           border-warm-stone/20
+                          bg-white
+                          p-6
+                          shadow-warm
                         "
                       >
-
-                        <div className="
-                          flex
-                          items-start
-                          gap-4
-                        ">
-
-                          <div className="
+                        <div
+                          className="
                             flex
-                            h-10
-                            w-10
-                            shrink-0
-                            items-center
-                            justify-center
-                            rounded-full
-                            bg-bronze/10
-                          ">
-
-                            <span className="
-                              text-sm
-                              font-semibold
-                              text-bronze
-                            ">
+                            items-start
+                            gap-4
+                          "
+                        >
+                          <div
+                            className="
+                              flex
+                              h-10
+                              w-10
+                              shrink-0
+                              items-center
+                              justify-center
+                              rounded-full
+                              bg-bronze/10
+                            "
+                          >
+                            <span
+                              className="
+                                text-sm
+                                font-semibold
+                                text-bronze
+                              "
+                            >
                               {review.guestName
-                                ?.charAt(0)
+                                ?.charAt(
+                                  0
+                                )
                                 ?.toUpperCase() ||
                                 "G"}
                             </span>
-
                           </div>
 
-                          <div className="
-                            flex-1
-                          ">
-
-                            <div className="
-                              flex
-                              flex-col
-                              gap-2
-                              sm:flex-row
-                              sm:items-center
-                              sm:justify-between
-                            ">
-
-                              <p className="
-                                font-semibold
-                                text-espresso
-                              ">
-                                {
-                                  review.guestName ||
-                                  "Guest"
-                                }
+                          <div className="flex-1">
+                            <div
+                              className="
+                                flex
+                                flex-col
+                                gap-2
+                                sm:flex-row
+                                sm:items-center
+                                sm:justify-between
+                              "
+                            >
+                              <p
+                                className="
+                                  font-semibold
+                                  text-espresso
+                                "
+                              >
+                                {review.guestName ||
+                                  "Guest"}
                               </p>
 
-                              <div className="
-                                flex
-                                items-center
-                                gap-1
-                              ">
-
-                                {Array.from({
-                                  length: 5,
-                                }).map(
-                                  (_, i) => (
-
+                              <div
+                                className="
+                                  flex
+                                  items-center
+                                  gap-1
+                                "
+                              >
+                                {Array.from(
+                                  {
+                                    length: 5,
+                                  }
+                                ).map(
+                                  (
+                                    _,
+                                    i
+                                  ) => (
                                     <Star
-                                      key={i}
+                                      key={
+                                        i
+                                      }
                                       className={`
-                                        w-4
                                         h-4
-                                        ${i <
+                                        w-4
+                                        ${
+                                          i <
                                           review.rating
-                                          ? "fill-bronze text-bronze"
-                                          : "text-warm-stone/40"
+                                            ? "fill-bronze text-bronze"
+                                            : "text-warm-stone/40"
                                         }
                                       `}
                                     />
-
                                   )
                                 )}
-
                               </div>
-
                             </div>
 
-                            <p className="
-                              mt-1
-                              text-xs
-                              text-muted-foreground
-                            ">
+                            <p
+                              className="
+                                mt-1
+                                text-xs
+                                text-muted-foreground
+                              "
+                            >
                               {new Date(
                                 review.createdAt
                               ).toLocaleDateString(
@@ -1583,41 +2502,46 @@ export default function HotelDetails() {
                               )}
                             </p>
 
-                            <p className="
-                              mt-3
-                              leading-relaxed
-                              text-muted-foreground
-                            ">
-                              {review.comment}
+                            <p
+                              className="
+                                mt-3
+                                leading-relaxed
+                                text-muted-foreground
+                              "
+                            >
+                              {
+                                review.comment
+                              }
                             </p>
-
                           </div>
-
                         </div>
-
                       </div>
-
                     )
                   )}
 
-                  {totalReviewPages > 1 && (
+                  {/* PAGINATION */}
 
-                    <div className="
-                      mt-6
-                      flex
-                      items-center
-                      justify-center
-                      gap-4
-                    ">
-
+                  {totalReviewPages >
+                    1 && (
+                    <div
+                      className="
+                        mt-6
+                        flex
+                        items-center
+                        justify-center
+                        gap-4
+                      "
+                    >
                       <button
                         disabled={
-                          reviewPage === 0
+                          reviewPage ===
+                          0
                         }
                         onClick={() =>
                           setReviewPage(
                             (prev) =>
-                              prev - 1
+                              prev -
+                              1
                           )
                         }
                         className="
@@ -1633,35 +2557,37 @@ export default function HotelDetails() {
                           disabled:opacity-40
                         "
                       >
-
-                        <ChevronLeft className="
-                          h-4
-                          w-4
-                        " />
+                        <ChevronLeft className="h-4 w-4" />
 
                         Previous
-
                       </button>
 
-                      <span className="
-                        text-sm
-                        text-muted-foreground
-                      ">
+                      <span
+                        className="
+                          text-sm
+                          text-muted-foreground
+                        "
+                      >
                         Page{" "}
-                        {reviewPage + 1}{" "}
+                        {reviewPage +
+                          1}{" "}
                         of{" "}
-                        {totalReviewPages}
+                        {
+                          totalReviewPages
+                        }
                       </span>
 
                       <button
                         disabled={
                           reviewPage >=
-                          totalReviewPages - 1
+                          totalReviewPages -
+                            1
                         }
                         onClick={() =>
                           setReviewPage(
                             (prev) =>
-                              prev + 1
+                              prev +
+                              1
                           )
                         }
                         className="
@@ -1677,26 +2603,15 @@ export default function HotelDetails() {
                           disabled:opacity-40
                         "
                       >
-
                         Next
 
-                        <ChevronRight className="
-                          h-4
-                          w-4
-                        " />
-
+                        <ChevronRight className="h-4 w-4" />
                       </button>
-
                     </div>
-
                   )}
-
                 </div>
-
               )}
-
             </div>
-
           </div>
 
           {/* =================================================
@@ -1704,39 +2619,39 @@ export default function HotelDetails() {
               ================================================= */}
 
           <div>
-
-            <div className="
-              sticky
-              top-24
-              bg-white
-              rounded-2xl
-              shadow-warm
-              border
-              border-warm-stone/20
-              p-6
-            ">
-
+            <div
+              className="
+                sticky
+                top-24
+                rounded-2xl
+                border
+                border-warm-stone/20
+                bg-white
+                p-6
+                shadow-warm
+              "
+            >
               {/* BOOKING MODE */}
 
-              <div className="
-                mb-6
-              ">
-
-                <p className="
-                  text-sm
-                  text-muted-foreground
-                  mb-2
-                ">
+              <div className="mb-6">
+                <p
+                  className="
+                    mb-2
+                    text-sm
+                    text-muted-foreground
+                  "
+                >
                   Booking Type
                 </p>
 
-                <div className="
-                  flex
-                  rounded-xl
-                  bg-cream
-                  p-1
-                ">
-
+                <div
+                  className="
+                    flex
+                    rounded-xl
+                    bg-cream
+                    p-1
+                  "
+                >
                   <button
                     type="button"
                     onClick={() =>
@@ -1750,10 +2665,11 @@ export default function HotelDetails() {
                       py-2
                       text-sm
                       font-medium
-                      ${bookingMode ===
+                      ${
+                        bookingMode ===
                         "DAILY"
-                        ? "bg-bronze text-white"
-                        : "text-espresso"
+                          ? "bg-bronze text-white"
+                          : "text-espresso"
                       }
                     `}
                   >
@@ -1773,45 +2689,42 @@ export default function HotelDetails() {
                       py-2
                       text-sm
                       font-medium
-                      ${bookingMode ===
+                      ${
+                        bookingMode ===
                         "HOURLY"
-                        ? "bg-bronze text-white"
-                        : "text-espresso"
+                          ? "bg-bronze text-white"
+                          : "text-espresso"
                       }
                     `}
                   >
                     Hourly
                   </button>
-
                 </div>
-
               </div>
 
-              {/* =================================================
-                  DATES / TIMES
-                  ================================================= */}
+              {/* DATES / TIMES */}
 
-              <div className="
-                space-y-4
-              ">
-
+              <div className="space-y-4">
                 {/* CHECK IN DATE */}
 
                 <div>
-
-                  <label className="
-                    text-sm
-                    font-medium
-                    text-espresso
-                    mb-1
-                    block
-                  ">
+                  <label
+                    className="
+                      mb-1
+                      block
+                      text-sm
+                      font-medium
+                      text-espresso
+                    "
+                  >
                     Check In
                   </label>
 
                   <input
                     type="date"
-                    value={checkInDate}
+                    value={
+                      checkInDate
+                    }
                     min={today}
                     onChange={(e) =>
                       handleCheckInDateChange(
@@ -1831,100 +2744,102 @@ export default function HotelDetails() {
                       focus:ring-bronze/20
                     "
                   />
-
                 </div>
 
                 {/* HOURLY CHECK-IN TIME */}
 
                 {bookingMode ===
                   "HOURLY" && (
-
-                    <div>
-
-                      <label className="
+                  <div>
+                    <label
+                      className="
+                        mb-1
+                        block
                         text-sm
                         font-medium
                         text-espresso
-                        mb-1
-                        block
-                      ">
-                        Check In Time
-                      </label>
+                      "
+                    >
+                      Check In Time
+                    </label>
 
-                      <div className="
-                        relative
-                      ">
+                    <div className="relative">
+                      <Clock
+                        className="
+                          absolute
+                          left-4
+                          top-1/2
+                          h-4
+                          w-4
+                          -translate-y-1/2
+                          text-bronze
+                        "
+                      />
 
-                        <Clock
-                          className="
-                            absolute
-                            left-4
-                            top-1/2
-                            -translate-y-1/2
-                            w-4
-                            h-4
-                            text-bronze
-                          "
-                        />
+                      <input
+                        type="time"
+                        value={
+                          checkInTime
+                        }
+                        onChange={(
+                          e
+                        ) => {
+                          setCheckInTime(
+                            e.target
+                              .value
+                          );
 
-                        <input
-                          type="time"
-                          value={
-                            checkInTime
-                          }
-                          onChange={(e) => {
+                          clearQuote();
 
-                            setCheckInTime(
-                              e.target.value
-                            );
-
-                            clearQuote();
-                          }}
-                          className="
-                            w-full
-                            rounded-xl
-                            border
-                            border-warm-stone/30
-                            bg-cream
-                            px-4
-                            py-3
-                            pl-11
-                            focus:outline-none
-                            focus:ring-2
-                            focus:ring-bronze/20
-                          "
-                        />
-
-                      </div>
-
+                          setHourlyAdjustment(
+                            null
+                          );
+                        }}
+                        className="
+                          w-full
+                          rounded-xl
+                          border
+                          border-warm-stone/30
+                          bg-cream
+                          px-4
+                          py-3
+                          pl-11
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-bronze/20
+                        "
+                      />
                     </div>
-
-                  )}
+                  </div>
+                )}
 
                 {/* CHECK OUT DATE */}
 
                 <div>
-
-                  <label className="
-                    text-sm
-                    font-medium
-                    text-espresso
-                    mb-1
-                    block
-                  ">
+                  <label
+                    className="
+                      mb-1
+                      block
+                      text-sm
+                      font-medium
+                      text-espresso
+                    "
+                  >
                     Check Out
                   </label>
 
                   <input
                     type="date"
-                    value={checkOutDate}
+                    value={
+                      checkOutDate
+                    }
                     min={
                       checkInDate ||
                       today
                     }
                     max={
                       bookingMode ===
-                        "HOURLY"
+                      "HOURLY"
                         ? checkInDate
                         : undefined
                     }
@@ -1946,97 +2861,160 @@ export default function HotelDetails() {
                       focus:ring-bronze/20
                     "
                   />
-
                 </div>
 
                 {/* HOURLY CHECK-OUT TIME */}
 
                 {bookingMode ===
                   "HOURLY" && (
-
-                    <div>
-
-                      <label className="
+                  <div>
+                    <label
+                      className="
+                        mb-1
+                        block
                         text-sm
                         font-medium
                         text-espresso
-                        mb-1
-                        block
-                      ">
-                        Check Out Time
-                      </label>
+                      "
+                    >
+                      Check Out Time
+                    </label>
 
-                      <div className="
-                        relative
-                      ">
+                    <div className="relative">
+                      <Clock
+                        className="
+                          absolute
+                          left-4
+                          top-1/2
+                          h-4
+                          w-4
+                          -translate-y-1/2
+                          text-bronze
+                        "
+                      />
 
-                        <Clock
-                          className="
-                            absolute
-                            left-4
-                            top-1/2
-                            -translate-y-1/2
-                            w-4
-                            h-4
-                            text-bronze
-                          "
-                        />
+                      <input
+                        type="time"
+                        value={
+                          checkOutTime
+                        }
+                        onChange={(
+                          e
+                        ) => {
+                          setCheckOutTime(
+                            e.target
+                              .value
+                          );
 
-                        <input
-                          type="time"
-                          value={
-                            checkOutTime
-                          }
-                          onChange={(e) => {
+                          clearQuote();
 
-                            setCheckOutTime(
-                              e.target.value
-                            );
-
-                            clearQuote();
-                          }}
-                          className="
-                            w-full
-                            rounded-xl
-                            border
-                            border-warm-stone/30
-                            bg-cream
-                            px-4
-                            py-3
-                            pl-11
-                            focus:outline-none
-                            focus:ring-2
-                            focus:ring-bronze/20
-                          "
-                        />
-
-                      </div>
-
+                          setHourlyAdjustment(
+                            null
+                          );
+                        }}
+                        className="
+                          w-full
+                          rounded-xl
+                          border
+                          border-warm-stone/30
+                          bg-cream
+                          px-4
+                          py-3
+                          pl-11
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-bronze/20
+                        "
+                      />
                     </div>
 
-                  )}
+                    {/* LIVE HOURLY DURATION */}
 
-                {/* =================================================
-                    GUESTS
-                    ================================================= */}
+                    {checkInTime &&
+                      checkOutTime &&
+                      checkInDate ===
+                        checkOutDate && (
+                        <div
+                          className="
+                            mt-2
+                            flex
+                            items-center
+                            justify-between
+                            rounded-lg
+                            bg-cream
+                            px-3
+                            py-2
+                          "
+                        >
+                          <span
+                            className="
+                              text-xs
+                              text-muted-foreground
+                            "
+                          >
+                            Duration
+                          </span>
 
-                <div className="
-                  grid
-                  grid-cols-2
-                  gap-4
-                ">
+                          <span
+                            className="
+                              text-xs
+                              font-semibold
+                              text-espresso
+                            "
+                          >
+                            {(() => {
+                              const start =
+                                getMinutesFromTime(
+                                  checkInTime
+                                );
 
+                              const end =
+                                getMinutesFromTime(
+                                  checkOutTime
+                                );
+
+                              const duration =
+                                end -
+                                start;
+
+                              if (
+                                duration <=
+                                0
+                              ) {
+                                return "Invalid time range";
+                              }
+
+                              return formatDuration(
+                                duration
+                              );
+                            })()}
+                          </span>
+                        </div>
+                      )}
+                  </div>
+                )}
+
+                {/* GUESTS */}
+
+                <div
+                  className="
+                    grid
+                    grid-cols-2
+                    gap-4
+                  "
+                >
                   {/* ADULTS */}
 
                   <div>
-
-                    <label className="
-                      text-sm
-                      font-medium
-                      text-espresso
-                      mb-1
-                      block
-                    ">
+                    <label
+                      className="
+                        mb-1
+                        block
+                        text-sm
+                        font-medium
+                        text-espresso
+                      "
+                    >
                       Adults
                     </label>
 
@@ -2045,12 +3023,12 @@ export default function HotelDetails() {
                       min={1}
                       value={adults}
                       onChange={(e) => {
-
                         setAdults(
                           Math.max(
                             1,
                             Number(
-                              e.target.value
+                              e.target
+                                .value
                             )
                           )
                         );
@@ -2067,34 +3045,36 @@ export default function HotelDetails() {
                         py-3
                       "
                     />
-
                   </div>
 
                   {/* CHILDREN */}
 
                   <div>
-
-                    <label className="
-                      text-sm
-                      font-medium
-                      text-espresso
-                      mb-1
-                      block
-                    ">
+                    <label
+                      className="
+                        mb-1
+                        block
+                        text-sm
+                        font-medium
+                        text-espresso
+                      "
+                    >
                       Children
                     </label>
 
                     <input
                       type="number"
                       min={0}
-                      value={children}
+                      value={
+                        children
+                      }
                       onChange={(e) => {
-
                         setChildren(
                           Math.max(
                             0,
                             Number(
-                              e.target.value
+                              e.target
+                                .value
                             )
                           )
                         );
@@ -2111,107 +3091,108 @@ export default function HotelDetails() {
                         py-3
                       "
                     />
-
                   </div>
-
                 </div>
-
               </div>
 
-              {/* =================================================
-                  CURRENT QUOTE
-                  ================================================= */}
+              {/* CURRENT QUOTE */}
 
               {quote && (
-
-                <div className="
-                  mt-6
-                  rounded-xl
-                  bg-cream
-                  p-4
-                ">
-
-                  <p className="
-                    text-xs
-                    text-muted-foreground
-                  ">
+                <div
+                  className="
+                    mt-6
+                    rounded-xl
+                    bg-cream
+                    p-4
+                  "
+                >
+                  <p
+                    className="
+                      text-xs
+                      text-muted-foreground
+                    "
+                  >
                     Selected room
                   </p>
 
-                  <p className="
-                    font-semibold
-                    text-espresso
-                  ">
-                    {quote.roomType}
+                  <p
+                    className="
+                      font-semibold
+                      text-espresso
+                    "
+                  >
+                    {formatRoomType(
+                      quote.roomType
+                    )}
                   </p>
 
-                  <div className="
-                    mt-3
-                    flex
-                    items-center
-                    justify-between
-                  ">
-
-                    <span className="
-                      text-sm
-                      text-muted-foreground
-                    ">
+                  <div
+                    className="
+                      mt-3
+                      flex
+                      items-center
+                      justify-between
+                    "
+                  >
+                    <span
+                      className="
+                        text-sm
+                        text-muted-foreground
+                      "
+                    >
                       Final price
                     </span>
 
-                    <span className="
-                      text-xl
-                      font-bold
-                      text-bronze
-                    ">
+                    <span
+                      className="
+                        text-xl
+                        font-bold
+                        text-bronze
+                      "
+                    >
                       ₹
-                      {Number(
+                      {formatPrice(
                         quote.finalPrice
-                      ).toLocaleString()}
+                      ) || "—"}
                     </span>
-
                   </div>
-
                 </div>
-
               )}
 
-              <p className="
-                mt-5
-                text-xs
-                leading-relaxed
-                text-muted-foreground
-              ">
+              <p
+                className="
+                  mt-5
+                  text-xs
+                  leading-relaxed
+                  text-muted-foreground
+                "
+              >
                 Select a room type above
                 to calculate the final
                 dynamic price.
               </p>
-
             </div>
-
           </div>
-
         </div>
-
       </section>
 
       {/* =====================================================
-          GALLERY MODAL
+          HOURLY ADJUSTMENT CONFIRMATION
           ===================================================== */}
 
       <AnimatePresence>
-
-        {galleryOpen && (
-
+        {hourlyAdjustment && (
           <motion.div
             className="
               fixed
               inset-0
-              z-50
-              bg-black/90
+              z-[60]
               flex
               items-center
               justify-center
+              bg-black/50
+              px-4
+              backdrop-blur-sm
             "
             initial={{
               opacity: 0,
@@ -2222,102 +3203,635 @@ export default function HotelDetails() {
             exit={{
               opacity: 0,
             }}
+            onClick={
+              cancelHourlyAdjustment
+            }
           >
-
-            {/* CLOSE */}
-
-            <button
-              onClick={() =>
-                setGalleryOpen(false)
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="hourly-adjustment-title"
+              initial={{
+                opacity: 0,
+                y: 20,
+                scale: 0.97,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                scale: 1,
+              }}
+              exit={{
+                opacity: 0,
+                y: 20,
+                scale: 0.97,
+              }}
+              transition={{
+                duration: 0.2,
+              }}
+              onClick={(e) =>
+                e.stopPropagation()
               }
               className="
-                absolute
-                top-6
-                right-6
-                text-white
+                w-full
+                max-w-md
+                overflow-hidden
+                rounded-2xl
+                bg-white
+                shadow-2xl
               "
             >
+              {/* HEADER */}
 
-              <X className="
-                w-8
-                h-8
-              " />
+              <div
+                className="
+                  flex
+                  items-start
+                  justify-between
+                  gap-4
+                  border-b
+                  border-warm-stone/20
+                  p-6
+                "
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className="
+                      flex
+                      h-10
+                      w-10
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-full
+                      bg-bronze/10
+                    "
+                  >
+                    <AlertTriangle
+                      className="
+                        h-5
+                        w-5
+                        text-bronze
+                      "
+                    />
+                  </div>
 
-            </button>
+                  <div>
+                    <h2
+                      id="hourly-adjustment-title"
+                      className="
+                        font-serif
+                        text-xl
+                        font-semibold
+                        text-espresso
+                      "
+                    >
+                      Adjust hourly booking
+                    </h2>
 
-            {/* PREVIOUS */}
+                    <p
+                      className="
+                        mt-1
+                        text-sm
+                        leading-relaxed
+                        text-muted-foreground
+                      "
+                    >
+                      Hourly bookings must use
+                      complete hours.
+                    </p>
+                  </div>
+                </div>
 
-            <button
-              onClick={() =>
-                setCurrentImage(
-                  (prev) =>
-                    prev === 0
-                      ? hotel.images.length - 1
-                      : prev - 1
-                )
-              }
-              className="
-                absolute
-                left-6
-                text-white
-              "
-            >
+                <button
+                  type="button"
+                  onClick={
+                    cancelHourlyAdjustment
+                  }
+                  className="
+                    rounded-full
+                    p-2
+                    text-muted-foreground
+                    transition-colors
+                    hover:bg-cream
+                    hover:text-espresso
+                  "
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-              <ChevronLeft className="
-                w-10
-                h-10
-              " />
+              {/* CONTENT */}
 
-            </button>
+              <div className="p-6">
+                <div
+                  className="
+                    rounded-xl
+                    bg-cream
+                    p-4
+                  "
+                >
+                  {/* ORIGINAL */}
 
-            {/* IMAGE */}
+                  <div
+                    className="
+                      flex
+                      items-center
+                      justify-between
+                      gap-4
+                    "
+                  >
+                    <div>
+                      <p
+                        className="
+                          text-xs
+                          text-muted-foreground
+                        "
+                      >
+                        Current selection
+                      </p>
 
-            <img
-              src={
-                hotel.images[
-                currentImage
-                ]
-              }
-              alt={hotel.name}
-              className="
-                max-h-[85vh]
-                max-w-[90vw]
-                rounded-xl
-              "
-            />
+                      <p
+                        className="
+                          mt-1
+                          font-semibold
+                          text-espresso
+                        "
+                      >
+                        {
+                          hourlyAdjustment.originalCheckIn
+                        }{" "}
+                        →{" "}
+                        {
+                          hourlyAdjustment.originalCheckOut
+                        }
+                      </p>
+                    </div>
 
-            {/* NEXT */}
+                    <div className="text-right">
+                      <p
+                        className="
+                          text-xs
+                          text-muted-foreground
+                        "
+                      >
+                        Duration
+                      </p>
 
-            <button
-              onClick={() =>
-                setCurrentImage(
-                  (prev) =>
-                    prev ===
-                      hotel.images.length - 1
-                      ? 0
-                      : prev + 1
-                )
-              }
-              className="
-                absolute
-                right-6
-                text-white
-              "
-            >
+                      <p
+                        className="
+                          mt-1
+                          font-semibold
+                          text-espresso
+                        "
+                      >
+                        {formatDuration(
+                          hourlyAdjustment.originalDurationMinutes
+                        )}
+                      </p>
+                    </div>
+                  </div>
 
-              <ChevronRight className="
-                w-10
-                h-10
-              " />
+                  <div
+                    className="
+                      my-4
+                      h-px
+                      bg-warm-stone/20
+                    "
+                  />
 
-            </button>
+                  {/* RECOMMENDED */}
 
+                  <div
+                    className="
+                      flex
+                      items-center
+                      justify-between
+                      gap-4
+                    "
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="
+                          flex
+                          h-9
+                          w-9
+                          items-center
+                          justify-center
+                          rounded-full
+                          bg-bronze/10
+                        "
+                      >
+                        {hourlyAdjustment.direction ===
+                        "EARLIER" ? (
+                          <ArrowDown
+                            className="
+                              h-4
+                              w-4
+                              text-bronze
+                            "
+                          />
+                        ) : (
+                          <ArrowUp
+                            className="
+                              h-4
+                              w-4
+                              text-bronze
+                            "
+                          />
+                        )}
+                      </div>
+
+                      <div>
+                        <p
+                          className="
+                            text-xs
+                            text-muted-foreground
+                          "
+                        >
+                          Recommended checkout
+                        </p>
+
+                        <p
+                          className="
+                            mt-1
+                            font-semibold
+                            text-bronze
+                          "
+                        >
+                          {
+                            hourlyAdjustment.adjustedCheckOut
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <p
+                        className="
+                          text-xs
+                          text-muted-foreground
+                        "
+                      >
+                        Duration
+                      </p>
+
+                      <p
+                        className="
+                          mt-1
+                          font-semibold
+                          text-espresso
+                        "
+                      >
+                        {formatDuration(
+                          hourlyAdjustment.adjustedDurationMinutes
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p
+                  className="
+                    mt-4
+                    text-sm
+                    leading-relaxed
+                    text-muted-foreground
+                  "
+                >
+                  Your selected duration is{" "}
+                  <span className="font-medium text-espresso">
+                    {formatDuration(
+                      hourlyAdjustment.originalDurationMinutes
+                    )}
+                  </span>
+                  . The nearest valid whole-hour
+                  duration is{" "}
+                  <span className="font-medium text-espresso">
+                    {formatDuration(
+                      hourlyAdjustment.adjustedDurationMinutes
+                    )}
+                  </span>
+                  .
+                </p>
+
+                <p
+                  className="
+                    mt-2
+                    text-xs
+                    leading-relaxed
+                    text-muted-foreground
+                  "
+                >
+                  Your price quote will be
+                  recalculated after the adjustment.
+                </p>
+              </div>
+
+              {/* ACTIONS */}
+
+              <div
+                className="
+                  flex
+                  flex-col-reverse
+                  gap-3
+                  border-t
+                  border-warm-stone/20
+                  p-6
+                  sm:flex-row
+                  sm:justify-end
+                "
+              >
+                <button
+                  type="button"
+                  onClick={
+                    cancelHourlyAdjustment
+                  }
+                  className="
+                    rounded-xl
+                    border
+                    border-warm-stone/30
+                    px-5
+                    py-2.5
+                    text-sm
+                    font-medium
+                    text-espresso
+                    transition-colors
+                    hover:bg-cream
+                  "
+                >
+                  Keep Editing
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    applyHourlyAdjustment
+                  }
+                  className="
+                    rounded-xl
+                    bg-bronze
+                    px-5
+                    py-2.5
+                    text-sm
+                    font-semibold
+                    text-white
+                    transition-colors
+                    hover:bg-bronze-dark
+                  "
+                >
+                  Use{" "}
+                  {
+                    hourlyAdjustment.adjustedCheckOut
+                  }
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
-
         )}
-
       </AnimatePresence>
 
+      {/* =====================================================
+          FULLSCREEN GALLERY
+          ALL HOTEL IMAGES
+          ===================================================== */}
+
+      <AnimatePresence>
+        {galleryOpen &&
+          hotelImages.length >
+            0 && (
+            <motion.div
+              className="
+                fixed
+                inset-0
+                z-50
+                flex
+                items-center
+                justify-center
+                bg-black/90
+              "
+              initial={{
+                opacity: 0,
+              }}
+              animate={{
+                opacity: 1,
+              }}
+              exit={{
+                opacity: 0,
+              }}
+            >
+              {/* CLOSE */}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setGalleryOpen(
+                    false
+                  )
+                }
+                className="
+                  absolute
+                  right-5
+                  top-5
+                  z-20
+                  rounded-full
+                  bg-white/10
+                  p-2
+                  text-white
+                  backdrop-blur-sm
+                  transition-colors
+                  hover:bg-white/20
+                  md:right-6
+                  md:top-6
+                "
+                aria-label="Close gallery"
+              >
+                <X
+                  className="
+                    h-7
+                    w-7
+                    md:h-8
+                    md:w-8
+                  "
+                />
+              </button>
+
+              {/* IMAGE COUNTER */}
+
+              <div
+                className="
+                  absolute
+                  left-1/2
+                  top-5
+                  z-20
+                  -translate-x-1/2
+                  rounded-full
+                  bg-black/50
+                  px-4
+                  py-2
+                  text-sm
+                  text-white
+                  backdrop-blur-sm
+                  md:top-6
+                "
+              >
+                {currentImage +
+                  1}{" "}
+                /{" "}
+                {hotelImages.length}
+              </div>
+
+              {/* PREVIOUS */}
+
+              {hotelImages.length >
+                1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentImage(
+                      (prev) =>
+                        prev ===
+                        0
+                          ? hotelImages.length -
+                            1
+                          : prev -
+                            1
+                    )
+                  }
+                  className="
+                    absolute
+                    left-3
+                    z-20
+                    flex
+                    h-11
+                    w-11
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-white/10
+                    text-white
+                    backdrop-blur-sm
+                    transition-colors
+                    hover:bg-white/20
+                    md:left-6
+                    md:h-12
+                    md:w-12
+                  "
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft
+                    className="
+                      h-7
+                      w-7
+                    "
+                  />
+                </button>
+              )}
+
+              {/* IMAGE */}
+
+              <div
+                className="
+                  flex
+                  h-full
+                  w-full
+                  items-center
+                  justify-center
+                  px-16
+                  py-20
+                  md:px-24
+                "
+              >
+                <AnimatePresence
+                  mode="wait"
+                >
+                  <motion.img
+                    key={
+                      currentImage
+                    }
+                    src={
+                      hotelImages[
+                        currentImage
+                      ]
+                    }
+                    alt={`${hotel.name} - photo ${
+                      currentImage +
+                      1
+                    }`}
+                    initial={{
+                      opacity: 0,
+                      scale: 0.98,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.98,
+                    }}
+                    transition={{
+                      duration: 0.2,
+                    }}
+                    className="
+                      max-h-full
+                      max-w-full
+                      rounded-xl
+                      object-contain
+                    "
+                  />
+                </AnimatePresence>
+              </div>
+
+              {/* NEXT */}
+
+              {hotelImages.length >
+                1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentImage(
+                      (prev) =>
+                        prev ===
+                        hotelImages.length -
+                          1
+                          ? 0
+                          : prev + 1
+                    )
+                  }
+                  className="
+                    absolute
+                    right-3
+                    z-20
+                    flex
+                    h-11
+                    w-11
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-white/10
+                    text-white
+                    backdrop-blur-sm
+                    transition-colors
+                    hover:bg-white/20
+                    md:right-6
+                    md:h-12
+                    md:w-12
+                  "
+                  aria-label="Next image"
+                >
+                  <ChevronRight
+                    className="
+                      h-7
+                      w-7
+                    "
+                  />
+                </button>
+              )}
+            </motion.div>
+          )}
+      </AnimatePresence>
     </MainLayout>
   );
 }

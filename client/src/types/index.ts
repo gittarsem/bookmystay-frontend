@@ -1,5 +1,5 @@
 export type UserRole =
-  | "ROLE_USER"
+  | "ROLE_GUEST"
   | "ROLE_OWNER"
   | "ROLE_ADMIN";
 
@@ -29,58 +29,43 @@ export interface Hotel {
   id: string;
   name: string;
   description: string;
-
   location: Location;
-
   images: string[];
-
   amenities: string[];
-
   rating: number;
-
   reviewCount: number;
-
   priceRange: PriceRange;
-
   isActive: boolean;
-
   createdAt: string;
 }
 
+export type RoomType =
+  | "STANDARD"
+  | "DOUBLE"
+  | "DELUXE"
+  | "SUITE"
+  | "FAMILY";
+
 export interface Room {
-  id: string;
-  hotelId: string;
-
-  type: string;
-
-  description: string;
-
-  images: string[];
-
-  price: number;
-
+  id: number;
   capacity: number;
+  roomType: RoomType;
+}
 
-  amenities: string[];
-
-  isAvailable: boolean;
-
-  createdAt: string;
+export interface RoomTypePricing {
+  id: number;
+  roomType: RoomType;
+  hourlyPrice: number;
+  dailyPrice: number;
 }
 
 export interface Review {
   id: string;
-
   hotelId: string;
-
   guestId: string;
-
   guestName: string;
-
   rating: number;
-
   comment: string;
-
   createdAt: string;
 }
 
@@ -97,50 +82,33 @@ export type PaymentStatus =
 
 export interface Booking {
   id: string;
-
   hotelId: string;
-
   roomId: string;
-
   guestId: string;
-
   hotel: Hotel;
-
   room: Room;
-
   checkIn: string;
-
   checkOut: string;
-
   adults: number;
-
   children: number;
-
   totalAmount: number;
-
   status: BookingStatus;
-
   paymentStatus: PaymentStatus;
-
   createdAt: string;
 }
 
 export interface OwnerHotel {
-  id: string;
-
+  id: number;
   name: string;
-
   city: string;
-
-  rating: number;
-
-  totalRooms: number;
-
-  activeBookings: number;
-
-  monthlyRevenue: number;
-
-  status: "ACTIVE" | "INACTIVE";
+  hotelContactInfo: {
+    address: string;
+    phoneNumber: string;
+    email: string;
+  };
+  imageUrl: string | null;
+  numberOfRooms: number;
+  active: boolean;
 }
 
 export interface Guest {
@@ -150,97 +118,60 @@ export interface Guest {
   gender: "MALE" | "FEMALE" | "Others";
 }
 
-
-
-
-
 export interface BookingCancelDTO {
-    bookingId: number;
-    bookingStatus: string;
-    checkInDate: string;
-    checkOutDate: string;
-    refundStatus: string;
-    refundAmount: number;
-    message: string;
-}
-
-export interface Review {
-    reviewId: number;
-    guestName: string;
-    rating: number;
-    comment: string;
-    createdAt: string;
+  bookingId: number;
+  bookingStatus: string;
+  checkInDate: string;
+  checkOutDate: string;
+  refundStatus: string;
+  refundAmount: number;
+  message: string;
 }
 
 export interface CreateReviewRequest {
-    bookingId: number;
-    ratings: number;
-    comment: string;
+  bookingId: number;
+  ratings: number;
+  comment: string;
 }
 
 export interface UpdateReviewRequest {
-    ratings: number;
-    comment: string;
+  ratings: number;
+  comment: string;
 }
 
 export interface ReviewResponse {
-    reviewId: number;
-    guestName: string;
-    rating: number;
-    comment: string;
-    createdAt: string;
+  reviewId: number;
+  guestName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
 }
-
-/* =========================================================
-   BOOKING TYPES
-   ========================================================= */
 
 export type BookingMode =
   | "DAILY"
   | "HOURLY";
 
-
 export interface BookingGuest {
-
   id: number;
-
   name: string;
-
   gender: string;
-
   age: number;
 }
 
-
 export interface BookingDetails {
-
   bookingId: number;
-
   hotelName: string;
-
   city: string;
-
   roomType: string;
-
   bookingMode: BookingMode;
-
   checkInDate: string;
-
   checkOutDate: string;
-
   checkInTime: string | null;
-
   checkOutTime: string | null;
-
   adultCount: number;
-
   childCount: number;
-
   amount: number;
-
   bookingStatus: string;
-
   paymentStatus: string;
-
   guests: BookingGuest[];
 }
