@@ -74,8 +74,8 @@ import AdminReports from "./pages/admin/AdminReports";
 import AdminActivity from "./pages/admin/AdminActivity";
 import AdminSettings from "./pages/admin/AdminSettings";
 
-
 import Profile from "./pages/Profile";
+
 /* =========================================================
    ERROR
 ========================================================= */
@@ -201,6 +201,10 @@ function Router() {
         component={EditReview}
       />
 
+      {/* =====================================================
+          PROFILE
+      ====================================================== */}
+
       <Route
         path="/profile"
         component={() => (
@@ -209,6 +213,7 @@ function Router() {
           </ProtectedRoute>
         )}
       />
+
       {/* =====================================================
           OWNER ONBOARDING
       ====================================================== */}
@@ -247,9 +252,7 @@ function Router() {
       <Route
         path="/owner"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerDashboard />
           </ProtectedRoute>
         )}
@@ -258,9 +261,7 @@ function Router() {
       <Route
         path="/owner/hotels"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerHotels />
           </ProtectedRoute>
         )}
@@ -269,34 +270,25 @@ function Router() {
       <Route
         path="/owner/hotels/new"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerHotelCreate />
           </ProtectedRoute>
         )}
       />
 
-
       <Route
         path="/owner/hotels/:hotelId"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerHotelDetails />
           </ProtectedRoute>
         )}
       />
 
-
-
       <Route
         path="/owner/rooms"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerRooms />
           </ProtectedRoute>
         )}
@@ -305,9 +297,7 @@ function Router() {
       <Route
         path="/owner/:hotelId/rooms"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerRooms />
           </ProtectedRoute>
         )}
@@ -316,9 +306,7 @@ function Router() {
       <Route
         path="/owner/inventory"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerInventory />
           </ProtectedRoute>
         )}
@@ -327,9 +315,7 @@ function Router() {
       <Route
         path="/owner/bookings"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerBookings />
           </ProtectedRoute>
         )}
@@ -338,9 +324,7 @@ function Router() {
       <Route
         path="/owner/hotels/:hotelId/bookings"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerBookings />
           </ProtectedRoute>
         )}
@@ -349,9 +333,7 @@ function Router() {
       <Route
         path="/owner/revenue"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerRevenue />
           </ProtectedRoute>
         )}
@@ -360,9 +342,7 @@ function Router() {
       <Route
         path="/owner/reviews"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerReviews />
           </ProtectedRoute>
         )}
@@ -371,9 +351,7 @@ function Router() {
       <Route
         path="/owner/settings"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_OWNER"
-          >
+          <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerSettings />
           </ProtectedRoute>
         )}
@@ -386,9 +364,7 @@ function Router() {
       <Route
         path="/admin"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_ADMIN"
-          >
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
             <AdminDashboard />
           </ProtectedRoute>
         )}
@@ -397,9 +373,7 @@ function Router() {
       <Route
         path="/admin/users"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_ADMIN"
-          >
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
             <AdminUsers />
           </ProtectedRoute>
         )}
@@ -408,9 +382,7 @@ function Router() {
       <Route
         path="/admin/hotels"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_ADMIN"
-          >
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
             <AdminHotels />
           </ProtectedRoute>
         )}
@@ -419,9 +391,7 @@ function Router() {
       <Route
         path="/admin/verification"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_ADMIN"
-          >
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
             <AdminVerification />
           </ProtectedRoute>
         )}
@@ -430,9 +400,7 @@ function Router() {
       <Route
         path="/admin/reviews"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_ADMIN"
-          >
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
             <AdminReviews />
           </ProtectedRoute>
         )}
@@ -441,9 +409,7 @@ function Router() {
       <Route
         path="/admin/reports"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_ADMIN"
-          >
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
             <AdminReports />
           </ProtectedRoute>
         )}
@@ -452,9 +418,7 @@ function Router() {
       <Route
         path="/admin/activity"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_ADMIN"
-          >
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
             <AdminActivity />
           </ProtectedRoute>
         )}
@@ -463,9 +427,7 @@ function Router() {
       <Route
         path="/admin/settings"
         component={() => (
-          <ProtectedRoute
-            requiredRole="ROLE_ADMIN"
-          >
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
             <AdminSettings />
           </ProtectedRoute>
         )}
@@ -493,12 +455,14 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <TooltipProvider>
+
             <Toaster
               richColors
               position="top-right"
             />
 
             <Router />
+
           </TooltipProvider>
         </AuthProvider>
       </ThemeProvider>
