@@ -5,7 +5,7 @@ import axios, {
 } from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env.API_BASE_URL,
   withCredentials: true,
 });
 
@@ -105,7 +105,7 @@ api.interceptors.response.use(
 
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
+        `${import.meta.env.API_BASE_URL}/auth/refresh`,
         {},
         {
           withCredentials: true,
