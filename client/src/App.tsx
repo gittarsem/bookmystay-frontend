@@ -82,9 +82,11 @@ import Profile from "./pages/Profile";
 
 import NotFound from "./pages/NotFound";
 
+
 function Router() {
   return (
     <Switch>
+
       {/* =====================================================
           PUBLIC
       ====================================================== */}
@@ -144,29 +146,47 @@ function Router() {
         component={Privacy}
       />
 
+
       {/* =====================================================
           BOOKING
       ====================================================== */}
 
       <Route
         path="/booking/:bookingId"
-        component={Booking}
+        component={() => (
+          <ProtectedRoute>
+            <Booking />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/booking-success/:bookingId"
-        component={BookingSuccess}
+        component={() => (
+          <ProtectedRoute>
+            <BookingSuccess />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/booking-failed/:bookingId"
-        component={BookingFailed}
+        component={() => (
+          <ProtectedRoute>
+            <BookingFailed />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/booking/:bookingId/confirmation"
-        component={BookingConfirmation}
+        component={() => (
+          <ProtectedRoute>
+            <BookingConfirmation />
+          </ProtectedRoute>
+        )}
       />
+
 
       {/* =====================================================
           MY BOOKINGS
@@ -174,18 +194,31 @@ function Router() {
 
       <Route
         path="/my-bookings"
-        component={MyBookings}
+        component={() => (
+          <ProtectedRoute>
+            <MyBookings />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/my-bookings/:bookingId"
-        component={BookingDetails}
+        component={() => (
+          <ProtectedRoute>
+            <BookingDetails />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/my-bookings/:bookingId/guests"
-        component={ManageGuests}
+        component={() => (
+          <ProtectedRoute>
+            <ManageGuests />
+          </ProtectedRoute>
+        )}
       />
+
 
       {/* =====================================================
           REVIEWS
@@ -193,13 +226,22 @@ function Router() {
 
       <Route
         path="/my-bookings/:bookingId/review"
-        component={WriteReview}
+        component={() => (
+          <ProtectedRoute>
+            <WriteReview />
+          </ProtectedRoute>
+        )}
       />
 
       <Route
         path="/my-bookings/review/:reviewId/edit"
-        component={EditReview}
+        component={() => (
+          <ProtectedRoute>
+            <EditReview />
+          </ProtectedRoute>
+        )}
       />
+
 
       {/* =====================================================
           PROFILE
@@ -213,6 +255,7 @@ function Router() {
           </ProtectedRoute>
         )}
       />
+
 
       {/* =====================================================
           OWNER ONBOARDING
@@ -244,6 +287,7 @@ function Router() {
           </ProtectedRoute>
         )}
       />
+
 
       {/* =====================================================
           OWNER PORTAL
@@ -357,6 +401,7 @@ function Router() {
         )}
       />
 
+
       {/* =====================================================
           ADMIN PORTAL
       ====================================================== */}
@@ -433,6 +478,7 @@ function Router() {
         )}
       />
 
+
       {/* =====================================================
           404
       ====================================================== */}
@@ -445,9 +491,11 @@ function Router() {
       <Route
         component={NotFound}
       />
+
     </Switch>
   );
 }
+
 
 function App() {
   return (
@@ -469,5 +517,6 @@ function App() {
     </ErrorBoundary>
   );
 }
+
 
 export default App;
