@@ -7,6 +7,19 @@
 [![Vite](https://img.shields.io/badge/Vite-7.x-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.x-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
+<p align="center">
+  <b>A full-stack hotel booking platform built with Java, Spring Boot, PostgreSQL, Redis, Elasticsearch, Kafka and Razorpay.</b>
+</p>
+
+<p align="center">
+  <a href="https://bookmystay-frontend-one.vercel.app">Live</a>
+  •
+  <a href="https://github.com/gittarsem/BookMyStay">Backend</a>
+  •
+  <a href="https://github.com/gittarsem/BookMyStay-Frontend">Frontend</a>
+</p>
+
+
 ---
 
 ## 📌 Overview
