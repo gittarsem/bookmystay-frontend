@@ -5,7 +5,6 @@ import {
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
-import { toast } from "sonner";
 
 import type { UserRole } from "@/types";
 
@@ -27,14 +26,11 @@ export default function ProtectedRoute({
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    // Wait until AuthContext finishes restoring
-    // the authentication state.
     if (loading) {
       return;
     }
 
     if (!isAuthenticated) {
-      toast.error("Please login to continue.");
       setLocation("/login");
       return;
     }
@@ -43,10 +39,6 @@ export default function ProtectedRoute({
       requiredRole &&
       !hasRole(requiredRole)
     ) {
-      toast.error(
-        "You don't have permission to access this page."
-      );
-
       setLocation("/403");
     }
   }, [
@@ -57,15 +49,11 @@ export default function ProtectedRoute({
     setLocation,
   ]);
 
-  // -------------------------------------------------------
-  // Loading
-  // -------------------------------------------------------
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-cream">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-9 h-9 rounded-full border-2 border-bronze/20 border-t-bronze animate-spin" />
+          <div className="h-9 w-9 animate-spin rounded-full border-2 border-bronze/20 border-t-bronze" />
 
           <p className="text-sm text-muted-foreground">
             Loading...
@@ -75,17 +63,9 @@ export default function ProtectedRoute({
     );
   }
 
-  // -------------------------------------------------------
-  // Not authenticated
-  // -------------------------------------------------------
-
   if (!isAuthenticated) {
     return null;
   }
-
-  // -------------------------------------------------------
-  // Wrong role
-  // -------------------------------------------------------
 
   if (
     requiredRole &&
@@ -93,10 +73,6 @@ export default function ProtectedRoute({
   ) {
     return null;
   }
-
-  // -------------------------------------------------------
-  // Authorized
-  // -------------------------------------------------------
 
   return <>{children}</>;
 }

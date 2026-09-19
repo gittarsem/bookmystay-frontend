@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
   type FormEvent,
+  type ReactNode,
 } from "react";
 
 import { motion } from "framer-motion";
@@ -25,13 +26,14 @@ import { toast } from "sonner";
 import { useLocation } from "wouter";
 
 import { useAuth } from "@/contexts/AuthContext";
+
 import {
   profileApi,
   type Profile as ProfileData,
 } from "@/api/profile";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
-
+import MainLayout from "@/layouts/MainLayout";
 
 export default function Profile() {
   const [, navigate] = useLocation();
@@ -42,29 +44,23 @@ export default function Profile() {
     logout,
   } = useAuth();
 
-  /*
-   * =========================================================
-   * DASHBOARD ROLE
-   * =========================================================
-   *
-   * DashboardLayout currently supports:
-   * "owner" | "admin"
-   *
-   * Admin gets the admin layout.
-   * Everyone else using this dashboard layout gets owner layout.
-   */
+  const isAdmin =
+    roles.includes("ROLE_ADMIN");
+
+  const isOwner =
+    roles.includes("ROLE_OWNER");
+
+  const isGuest =
+    !isAdmin && !isOwner;
 
   const dashboardRole =
-    roles.includes("ROLE_ADMIN")
-      ? "admin"
-      : "owner";
+    isAdmin ? "admin" : "owner";
 
-
-  /*
-   * =========================================================
-   * PROFILE STATE
-   * =========================================================
-   */
+  const backPath = isAdmin
+    ? "/admin"
+    : isOwner
+      ? "/owner"
+      : "/";
 
   const [profile, setProfile] =
     useState<ProfileData | null>(null);
@@ -78,13 +74,6 @@ export default function Profile() {
   const [saving, setSaving] =
     useState(false);
 
-
-  /*
-   * =========================================================
-   * MODAL STATE
-   * =========================================================
-   */
-
   const [
     showPasswordModal,
     setShowPasswordModal,
@@ -94,13 +83,6 @@ export default function Profile() {
     showDeleteModal,
     setShowDeleteModal,
   ] = useState(false);
-
-
-  /*
-   * =========================================================
-   * PASSWORD STATE
-   * =========================================================
-   */
 
   const [
     currentPassword,
@@ -137,13 +119,6 @@ export default function Profile() {
     setChangingPassword,
   ] = useState(false);
 
-
-  /*
-   * =========================================================
-   * DELETE STATE
-   * =========================================================
-   */
-
   const [
     deletePassword,
     setDeletePassword,
@@ -158,13 +133,6 @@ export default function Profile() {
     deleting,
     setDeleting,
   ] = useState(false);
-
-
-  /*
-   * =========================================================
-   * LOAD PROFILE
-   * =========================================================
-   */
 
   const loadProfile = async () => {
     try {
@@ -190,17 +158,9 @@ export default function Profile() {
     }
   };
 
-
   useEffect(() => {
     loadProfile();
   }, []);
-
-
-  /*
-   * =========================================================
-   * UPDATE PROFILE
-   * =========================================================
-   */
 
   const handleUpdateProfile = async (
     event: FormEvent<HTMLFormElement>
@@ -214,7 +174,6 @@ export default function Profile() {
       toast.error(
         "Name is required."
       );
-
       return;
     }
 
@@ -222,7 +181,6 @@ export default function Profile() {
       toast.error(
         "Name must be at least 2 characters."
       );
-
       return;
     }
 
@@ -236,11 +194,6 @@ export default function Profile() {
 
       setProfile(response.data);
       setName(response.data.name);
-
-      /*
-       * Keep AuthContext synchronized
-       * with the backend.
-       */
 
       await refreshUser();
 
@@ -262,13 +215,6 @@ export default function Profile() {
     }
   };
 
-
-  /*
-   * =========================================================
-   * CHANGE PASSWORD
-   * =========================================================
-   */
-
   const handleChangePassword = async (
     event: FormEvent<HTMLFormElement>
   ) => {
@@ -278,7 +224,6 @@ export default function Profile() {
       toast.error(
         "Enter your current password."
       );
-
       return;
     }
 
@@ -286,7 +231,6 @@ export default function Profile() {
       toast.error(
         "Enter a new password."
       );
-
       return;
     }
 
@@ -294,7 +238,6 @@ export default function Profile() {
       toast.error(
         "New password must be at least 8 characters."
       );
-
       return;
     }
 
@@ -302,7 +245,6 @@ export default function Profile() {
       toast.error(
         "New passwords do not match."
       );
-
       return;
     }
 
@@ -335,27 +277,20 @@ export default function Profile() {
     }
   };
 
-
-  /*
-   * =========================================================
-   * DELETE ACCOUNT
-   * =========================================================
-   */
-
   const handleDeleteAccount = async () => {
     if (!deletePassword) {
       toast.error(
         "Enter your current password."
       );
-
       return;
     }
 
-    if (deleteConfirmation !== "DELETE") {
+    if (
+      deleteConfirmation !== "DELETE"
+    ) {
       toast.error(
         "Type DELETE to confirm account deletion."
       );
-
       return;
     }
 
@@ -370,10 +305,6 @@ export default function Profile() {
       toast.success(
         "Your account has been deleted."
       );
-
-      /*
-       * Clear authentication state.
-       */
 
       await logout();
 
@@ -393,35 +324,19 @@ export default function Profile() {
     }
   };
 
-
-  /*
-   * =========================================================
-   * CLOSE PASSWORD MODAL
-   * =========================================================
-   */
-
   const closePasswordModal = () => {
     if (changingPassword) {
       return;
     }
 
     setShowPasswordModal(false);
-
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-
     setShowCurrentPassword(false);
     setShowNewPassword(false);
     setShowConfirmPassword(false);
   };
-
-
-  /*
-   * =========================================================
-   * CLOSE DELETE MODAL
-   * =========================================================
-   */
 
   const closeDeleteModal = () => {
     if (deleting) {
@@ -429,61 +344,25 @@ export default function Profile() {
     }
 
     setShowDeleteModal(false);
-
     setDeletePassword("");
     setDeleteConfirmation("");
   };
 
-
-  /*
-   * =========================================================
-   * LOADING
-   * =========================================================
-   */
-
-  if (loading) {
-    return (
-      <DashboardLayout
-        role={dashboardRole}
-      >
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Loading profile...
-          </div>
+  const pageContent: ReactNode =
+    loading ? (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Loading profile...
         </div>
-      </DashboardLayout>
-    );
-  }
-
-
-  /*
-   * =========================================================
-   * PAGE
-   * =========================================================
-   */
-
-  return (
-    <DashboardLayout
-      role={dashboardRole}
-    >
-      <div className="mx-auto w-full max-w-5xl space-y-8">
-
-        {/* =====================================================
-            HEADER
-        ===================================================== */}
-
+      </div>
+    ) : (
+      <div className="mx-auto w-full max-w-5xl space-y-8 px-4 pb-16 pt-8 sm:px-6 md:pb-20 md:pt-12">
         <div>
           <button
             type="button"
-            onClick={() =>
-              navigate(
-                dashboardRole === "admin"
-                  ? "/admin"
-                  : "/owner"
-              )
-            }
-            className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-espresso"
+            onClick={() => navigate(backPath)}
+            className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-espresso"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -503,15 +382,8 @@ export default function Profile() {
           </p>
         </div>
 
-
-        {/* =====================================================
-            PERSONAL INFORMATION
-        ===================================================== */}
-
         <section className="overflow-hidden rounded-2xl border border-warm-stone/20 bg-white shadow-warm">
-
           <div className="flex items-center gap-4 px-6 py-6 md:px-8">
-
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bronze/10">
               <User className="h-5 w-5 text-bronze" />
             </div>
@@ -525,7 +397,6 @@ export default function Profile() {
                 Update your basic account information.
               </p>
             </div>
-
           </div>
 
           <div className="border-t border-warm-stone/20" />
@@ -534,11 +405,7 @@ export default function Profile() {
             onSubmit={handleUpdateProfile}
             className="space-y-6 px-6 py-7 md:px-8"
           >
-
             <div className="grid gap-6 md:grid-cols-2">
-
-              {/* NAME */}
-
               <div>
                 <label
                   htmlFor="profile-name"
@@ -555,9 +422,7 @@ export default function Profile() {
                     type="text"
                     value={name}
                     onChange={(event) =>
-                      setName(
-                        event.target.value
-                      )
+                      setName(event.target.value)
                     }
                     maxLength={100}
                     disabled={saving}
@@ -565,9 +430,6 @@ export default function Profile() {
                   />
                 </div>
               </div>
-
-
-              {/* EMAIL */}
 
               <div>
                 <label
@@ -583,9 +445,7 @@ export default function Profile() {
                   <input
                     id="profile-email"
                     type="email"
-                    value={
-                      profile?.email ?? ""
-                    }
+                    value={profile?.email ?? ""}
                     readOnly
                     className="h-12 w-full cursor-not-allowed rounded-xl border border-warm-stone/20 bg-stone-50 pl-11 pr-4 text-sm text-muted-foreground outline-none"
                   />
@@ -595,18 +455,13 @@ export default function Profile() {
                   Your email address cannot be changed.
                 </p>
               </div>
-
             </div>
-
-
-            {/* SAVE */}
 
             <div className="flex justify-end">
               <button
                 type="submit"
                 disabled={
-                  saving ||
-                  !name.trim()
+                  saving || !name.trim()
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-bronze px-5 py-3 text-sm font-semibold text-white transition hover:bg-bronze-dark disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -623,20 +478,11 @@ export default function Profile() {
                 )}
               </button>
             </div>
-
           </form>
-
         </section>
 
-
-        {/* =====================================================
-            ACCOUNT DETAILS
-        ===================================================== */}
-
         <section className="overflow-hidden rounded-2xl border border-warm-stone/20 bg-white shadow-warm">
-
           <div className="flex items-center gap-4 px-6 py-6 md:px-8">
-
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bronze/10">
               <Shield className="h-5 w-5 text-bronze" />
             </div>
@@ -650,19 +496,13 @@ export default function Profile() {
                 Information about your BookMyStay account.
               </p>
             </div>
-
           </div>
 
           <div className="border-t border-warm-stone/20" />
 
           <div className="grid gap-5 px-6 py-7 md:grid-cols-2 md:px-8">
-
-            {/* EMAIL */}
-
             <div className="rounded-xl border border-warm-stone/15 bg-cream/20 p-4">
-
               <div className="flex items-center gap-3">
-
                 <Mail className="h-4 w-4 text-bronze" />
 
                 <div>
@@ -674,18 +514,11 @@ export default function Profile() {
                     {profile?.email || "—"}
                   </p>
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* MEMBER SINCE */}
-
             <div className="rounded-xl border border-warm-stone/15 bg-cream/20 p-4">
-
               <div className="flex items-center gap-3">
-
                 <CalendarDays className="h-4 w-4 text-bronze" />
 
                 <div>
@@ -708,74 +541,50 @@ export default function Profile() {
                       : "—"}
                   </p>
                 </div>
-
               </div>
-
             </div>
 
-
-            {/* ROLES */}
-
             <div className="rounded-xl border border-warm-stone/15 bg-cream/20 p-4 md:col-span-2">
-
               <div className="flex items-start gap-3">
-
                 <Shield className="mt-0.5 h-4 w-4 text-bronze" />
 
                 <div>
-
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Account Roles
                   </p>
 
                   <div className="mt-2 flex flex-wrap gap-2">
-
                     {profile?.roles?.length ? (
-                      profile.roles.map(
-                        (role) => (
-                          <span
-                            key={role}
-                            className="rounded-full border border-bronze/20 bg-bronze/5 px-3 py-1 text-xs font-medium text-bronze"
-                          >
-                            {role
-                              .replace(
-                                "ROLE_",
-                                ""
-                              )
-                              .replaceAll(
-                                "_",
-                                " "
-                              )}
-                          </span>
-                        )
-                      )
+                      profile.roles.map((role) => (
+                        <span
+                          key={role}
+                          className="rounded-full border border-bronze/20 bg-bronze/5 px-3 py-1 text-xs font-medium text-bronze"
+                        >
+                          {role
+                            .replace(
+                              "ROLE_",
+                              ""
+                            )
+                            .replaceAll(
+                              "_",
+                              " "
+                            )}
+                        </span>
+                      ))
                     ) : (
                       <span className="text-sm text-muted-foreground">
                         No roles assigned
                       </span>
                     )}
-
                   </div>
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
         </section>
 
-
-        {/* =====================================================
-            SECURITY
-        ===================================================== */}
-
         <section className="overflow-hidden rounded-2xl border border-warm-stone/20 bg-white shadow-warm">
-
           <div className="flex items-center gap-4 px-6 py-6 md:px-8">
-
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bronze/10">
               <Lock className="h-5 w-5 text-bronze" />
             </div>
@@ -790,13 +599,11 @@ export default function Profile() {
                 updating your password.
               </p>
             </div>
-
           </div>
 
           <div className="border-t border-warm-stone/20" />
 
           <div className="flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between md:px-8">
-
             <div>
               <p className="text-sm font-semibold text-espresso">
                 Password
@@ -817,22 +624,12 @@ export default function Profile() {
               <Lock className="h-4 w-4" />
               Change Password
             </button>
-
           </div>
-
         </section>
 
-
-        {/* =====================================================
-            DANGER ZONE
-        ===================================================== */}
-
         <section className="overflow-hidden rounded-2xl border border-red-200/70 bg-white shadow-warm">
-
           <div className="px-6 py-6 md:px-8">
-
             <div className="flex items-start gap-4">
-
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50">
                 <AlertTriangle className="h-5 w-5 text-red-600" />
               </div>
@@ -847,11 +644,9 @@ export default function Profile() {
                   account and remove your account access.
                 </p>
               </div>
-
             </div>
 
             <div className="mt-6">
-
               <button
                 type="button"
                 onClick={() =>
@@ -862,19 +657,15 @@ export default function Profile() {
                 <Trash2 className="h-4 w-4" />
                 Delete Account
               </button>
-
             </div>
-
           </div>
-
         </section>
-
       </div>
+    );
 
-
-      {/* =======================================================
-          CHANGE PASSWORD MODAL
-      ======================================================= */}
+  const wrappedContent = (
+    <>
+      {pageContent}
 
       {showPasswordModal && (
         <div
@@ -888,7 +679,6 @@ export default function Profile() {
             }
           }}
         >
-
           <motion.div
             initial={{
               opacity: 0,
@@ -902,7 +692,6 @@ export default function Profile() {
             }}
             className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
           >
-
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-bronze/10">
               <Lock className="h-5 w-5 text-bronze" />
             </div>
@@ -916,12 +705,10 @@ export default function Profile() {
               a new password for your account.
             </p>
 
-
             <form
               onSubmit={handleChangePassword}
               className="mt-6 space-y-4"
             >
-
               <PasswordInput
                 id="current-password"
                 label="Current Password"
@@ -935,7 +722,6 @@ export default function Profile() {
                 }
                 disabled={changingPassword}
               />
-
 
               <PasswordInput
                 id="new-password"
@@ -951,7 +737,6 @@ export default function Profile() {
                 disabled={changingPassword}
               />
 
-
               <PasswordInput
                 id="confirm-password"
                 label="Confirm New Password"
@@ -966,14 +751,11 @@ export default function Profile() {
                 disabled={changingPassword}
               />
 
-
               <p className="pt-1 text-xs text-muted-foreground">
                 Password must contain at least 8 characters.
               </p>
 
-
               <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
-
                 <button
                   type="button"
                   disabled={changingPassword}
@@ -988,7 +770,6 @@ export default function Profile() {
                   disabled={changingPassword}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-bronze-dark disabled:cursor-not-allowed disabled:opacity-60"
                 >
-
                   {changingPassword ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1000,22 +781,12 @@ export default function Profile() {
                       Update Password
                     </>
                   )}
-
                 </button>
-
               </div>
-
             </form>
-
           </motion.div>
-
         </div>
       )}
-
-
-      {/* =======================================================
-          DELETE ACCOUNT MODAL
-      ======================================================= */}
 
       {showDeleteModal && (
         <div
@@ -1029,7 +800,6 @@ export default function Profile() {
             }
           }}
         >
-
           <motion.div
             initial={{
               opacity: 0,
@@ -1043,7 +813,6 @@ export default function Profile() {
             }}
             className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
           >
-
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
               <Trash2 className="h-5 w-5 text-red-600" />
             </div>
@@ -1057,24 +826,15 @@ export default function Profile() {
               lose access to your BookMyStay account.
             </p>
 
-
             <div className="mt-5 rounded-xl border border-red-100 bg-red-50/50 p-4">
-
               <p className="text-xs font-medium leading-5 text-red-700">
                 Enter your current password and type{" "}
-                <strong>DELETE</strong>{" "}
-                to confirm.
+                <strong>DELETE</strong> to confirm.
               </p>
-
             </div>
 
-
             <div className="mt-5 space-y-4">
-
-              {/* PASSWORD */}
-
               <div>
-
                 <label
                   htmlFor="delete-password"
                   className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
@@ -1094,14 +854,9 @@ export default function Profile() {
                   disabled={deleting}
                   className="h-12 w-full rounded-xl border border-warm-stone/25 bg-cream/20 px-4 text-sm text-espresso outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100 disabled:opacity-60"
                 />
-
               </div>
 
-
-              {/* CONFIRMATION */}
-
               <div>
-
                 <label
                   htmlFor="delete-confirmation"
                   className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
@@ -1123,16 +878,10 @@ export default function Profile() {
                   autoCapitalize="characters"
                   className="h-12 w-full rounded-xl border border-warm-stone/25 bg-cream/20 px-4 text-sm font-medium uppercase text-espresso outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100 disabled:opacity-60"
                 />
-
               </div>
-
             </div>
 
-
-            {/* ACTIONS */}
-
             <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
               <button
                 type="button"
                 disabled={deleting}
@@ -1151,7 +900,6 @@ export default function Profile() {
                 onClick={handleDeleteAccount}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-
                 {deleting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1163,26 +911,28 @@ export default function Profile() {
                     Delete Account
                   </>
                 )}
-
               </button>
-
             </div>
-
           </motion.div>
-
         </div>
       )}
+    </>
+  );
 
+  if (isGuest) {
+    return (
+      <MainLayout>
+        {wrappedContent}
+      </MainLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout role={dashboardRole}>
+      {wrappedContent}
     </DashboardLayout>
   );
 }
-
-
-/*
- * ===========================================================
- * PASSWORD INPUT
- * ===========================================================
- */
 
 interface PasswordInputProps {
   id: string;
@@ -1193,7 +943,6 @@ interface PasswordInputProps {
   onToggle: () => void;
   disabled: boolean;
 }
-
 
 function PasswordInput({
   id,
@@ -1206,7 +955,6 @@ function PasswordInput({
 }: PasswordInputProps) {
   return (
     <div>
-
       <label
         htmlFor={id}
         className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
@@ -1215,7 +963,6 @@ function PasswordInput({
       </label>
 
       <div className="relative">
-
         <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
         <input
@@ -1227,9 +974,7 @@ function PasswordInput({
           }
           value={value}
           onChange={(event) =>
-            onChange(
-              event.target.value
-            )
+            onChange(event.target.value)
           }
           disabled={disabled}
           className="h-12 w-full rounded-xl border border-warm-stone/25 bg-cream/20 pl-11 pr-12 text-sm text-espresso outline-none transition focus:border-bronze focus:bg-white focus:ring-2 focus:ring-bronze/10 disabled:cursor-not-allowed disabled:opacity-60"
@@ -1247,17 +992,13 @@ function PasswordInput({
           }
           className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground transition hover:bg-cream hover:text-espresso disabled:opacity-50"
         >
-
           {visible ? (
             <EyeOff className="h-4 w-4" />
           ) : (
             <Eye className="h-4 w-4" />
           )}
-
         </button>
-
       </div>
-
     </div>
   );
 }

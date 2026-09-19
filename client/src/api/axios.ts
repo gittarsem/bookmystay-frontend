@@ -17,12 +17,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    /*
-     * Do not manually set Content-Type for FormData.
-     *
-     * The browser must generate:
-     * multipart/form-data; boundary=...
-     */
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }
@@ -63,11 +57,10 @@ api.interceptors.response.use(
         _retry?: boolean;
       };
 
-    /*
-     * Do not try refreshing for:
-     * - login
-     * - refresh itself
-     */
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
     const isAuthRequest =
       originalRequest.url?.includes("/auth/login") ||
       originalRequest.url?.includes("/auth/refresh");
@@ -80,10 +73,6 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    /*
-     * If another request is already refreshing,
-     * wait for that refresh to finish.
-     */
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         failedQueue.push({
@@ -126,10 +115,7 @@ api.interceptors.response.use(
         accessToken
       );
 
-      processQueue(
-        null,
-        accessToken
-      );
+      processQueue(null, accessToken);
 
       if (originalRequest.headers) {
         originalRequest.headers.Authorization =
@@ -140,17 +126,10 @@ api.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError);
 
-      localStorage.removeItem(
-        "accessToken"
-      );
-
+      localStorage.removeItem("accessToken");
       localStorage.removeItem("user");
 
-      window.location.href = "/login";
-
-      return Promise.reject(
-        refreshError
-      );
+      return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
     }
