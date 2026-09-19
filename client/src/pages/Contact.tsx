@@ -170,7 +170,7 @@ export default function Contact() {
       "https://mail.google.com/mail/" +
       "?view=cm" +
       "&fs=1" +
-      "&to=work4tarsemgulab@gmail.com" +
+      "&to=staymybook@gmail.com" +
       `&su=${encodeURIComponent(
         emailSubject
       )}` +
@@ -425,7 +425,7 @@ export default function Contact() {
 
 
                       <a
-                        href="mailto:work4tarsemgulab@gmail.com"
+                        href="mailto:staymybook@gmail.com"
                         className="
                           mt-0.5
                           block
@@ -435,7 +435,7 @@ export default function Contact() {
                           hover:text-bronze
                         "
                       >
-                        work4tarsemgulab@gmail.com
+                        staymybook@gmail.com
                       </a>
 
                     </div>

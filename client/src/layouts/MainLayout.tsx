@@ -78,8 +78,14 @@ export default function MainLayout({
   // =========================================================
 
   useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location]);
+  setMobileMenuOpen(false);
+
+  window.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: "auto",
+  });
+}, [location]);
 
   // =========================================================
   // NAVBAR
@@ -1256,51 +1262,6 @@ export default function MainLayout({
               {new Date().getFullYear()}{" "}
               BookMyStay. All rights reserved.
             </p>
-
-            <div
-              className="
-                flex
-                gap-6
-              "
-            >
-
-              <span
-                className="
-                  cursor-pointer
-                  text-xs
-                  text-white/40
-                  transition-colors
-                  hover:text-bronze
-                "
-              >
-                Instagram
-              </span>
-
-              <span
-                className="
-                  cursor-pointer
-                  text-xs
-                  text-white/40
-                  transition-colors
-                  hover:text-bronze
-                "
-              >
-                Twitter
-              </span>
-
-              <span
-                className="
-                  cursor-pointer
-                  text-xs
-                  text-white/40
-                  transition-colors
-                  hover:text-bronze
-                "
-              >
-                Facebook
-              </span>
-
-            </div>
 
           </div>
 
