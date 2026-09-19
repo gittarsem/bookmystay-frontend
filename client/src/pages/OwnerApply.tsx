@@ -44,7 +44,7 @@ const governmentIds: {
   },
 ];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 1 * 1024 * 1024;
 
 const ALLOWED_FILE_TYPES = [
   "image/jpeg",
@@ -188,7 +188,7 @@ export default function OwnerApply() {
     if (
       file.size > MAX_FILE_SIZE
     ) {
-      return "File must be smaller than 10 MB.";
+      return "File must be 1 MB or smaller.";
     }
 
     return undefined;
@@ -267,22 +267,16 @@ export default function OwnerApply() {
   ) => {
     if (!file) return;
 
-    if (
-      !ALLOWED_FILE_TYPES.includes(
-        file.type
-      )
-    ) {
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       toast.error(
         "Please upload JPG, PNG, WEBP or PDF."
       );
       return;
     }
 
-    if (
-      file.size > MAX_FILE_SIZE
-    ) {
+    if (file.size > MAX_FILE_SIZE) {
       toast.error(
-        "Document must be smaller than 10 MB."
+        `File is too large. Maximum size is 1 MB. Selected file is ${formatFileSize(file.size)}.`
       );
       return;
     }
@@ -292,16 +286,14 @@ export default function OwnerApply() {
 
       setErrors((current) => ({
         ...current,
-        governmentIdFront:
-          undefined,
+        governmentIdFront: undefined,
       }));
     } else {
       setGovernmentIdBack(file);
 
       setErrors((current) => ({
         ...current,
-        governmentIdBack:
-          undefined,
+        governmentIdBack: undefined,
       }));
     }
   };
@@ -788,7 +780,7 @@ export default function OwnerApply() {
 
                 <p className="mt-4 text-xs text-muted-foreground">
                   Accepted formats: JPG, PNG, WEBP or PDF.
-                  Maximum file size: 10 MB per document.
+                  Maximum file size: 1 MB per document.
                 </p>
 
               </section>
