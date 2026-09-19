@@ -1,20 +1,11 @@
 import api from "./axios";
 
-/*
- * These values match the booking/payment states
- * returned by the backend.
- *
- * Keep this type open enough to avoid breaking the
- * frontend if another backend state is introduced.
- */
-
 export type OwnerBookingStatus =
-  | "PENDING"
-  | "CONFIRMED"
   | "BOOKED"
   | "PAYMENT_PENDING"
   | "CANCELLED"
-  | "EXPIRED";
+  | "EXPIRED"
+  | "REFUND";
 
 export type OwnerPaymentStatus =
   | "PENDING"
@@ -43,21 +34,9 @@ export interface OwnerBooking {
 
   bookingStatus: OwnerBookingStatus;
 
-  /*
-   * Backend can return null when a payment entity
-   * has not been created yet.
-   */
-  paymentStatus:
-    | OwnerPaymentStatus
-    | null;
+  paymentStatus: OwnerPaymentStatus | null;
 
-  /*
-   * Backend can return null when there is no payment
-   * record yet.
-   */
-  amount:
-    | number
-    | null;
+  amount: number | null;
 }
 
 export interface OwnerBookingGuest {
@@ -92,13 +71,9 @@ export interface OwnerBookingDetails {
 
   bookingStatus: OwnerBookingStatus;
 
-  paymentStatus:
-    | OwnerPaymentStatus
-    | null;
+  paymentStatus: OwnerPaymentStatus | null;
 
-  amount:
-    | number
-    | null;
+  amount: number | null;
 
   guests: OwnerBookingGuest[];
 }

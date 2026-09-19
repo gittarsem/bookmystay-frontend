@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useRoute, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -45,6 +45,18 @@ import {
    ========================================================= */
 
 type BookingMode = "DAILY" | "HOURLY";
+
+interface PendingQuote {
+  hotelId: number;
+  roomType: RoomType;
+  bookingMode: BookingMode;
+  checkInDate: string;
+  checkOutDate: string;
+  checkInTime: string;
+  checkOutTime: string;
+  adults: number;
+  children: number;
+}
 
 type RoomType =
   | "STANDARD"
@@ -222,8 +234,10 @@ export default function HotelDetails() {
   const searchParams =
     new URLSearchParams(search);
 
-  const { isAuthenticated } =
-    useAuth();
+  const {
+    isAuthenticated,
+    loading: authLoading,
+  } = useAuth();
 
   /* =======================================================
      HOTEL
@@ -331,6 +345,8 @@ export default function HotelDetails() {
     useState<RoomType | null>(
       null
     );
+
+  const pendingQuoteHandled = useRef(false);
 
   /* =======================================================
      REVIEWS
@@ -603,29 +619,34 @@ export default function HotelDetails() {
      ======================================================= */
 
   const getHourlyAdjustment =
-    (): HourlyAdjustment | null => {
+    (
+      overrideCheckInTime = checkInTime,
+      overrideCheckOutTime = checkOutTime,
+      overrideCheckInDate = checkInDate,
+      overrideCheckOutDate = checkOutDate
+    ): HourlyAdjustment | null => {
       if (
-        !checkInTime ||
-        !checkOutTime
+        !overrideCheckInTime ||
+        !overrideCheckOutTime
       ) {
         return null;
       }
 
       if (
-        checkInDate !==
-        checkOutDate
+        overrideCheckInDate !==
+        overrideCheckOutDate
       ) {
         return null;
       }
 
       const startMinutes =
         getMinutesFromTime(
-          checkInTime
+          overrideCheckInTime
         );
 
       const endMinutes =
         getMinutesFromTime(
-          checkOutTime
+          overrideCheckOutTime
         );
 
       let duration =
@@ -731,10 +752,10 @@ export default function HotelDetails() {
 
       return {
         originalCheckIn:
-          checkInTime,
+          overrideCheckInTime,
 
         originalCheckOut:
-          checkOutTime,
+          overrideCheckOutTime,
 
         adjustedCheckOut:
           formatTimeValue(
@@ -794,101 +815,64 @@ export default function HotelDetails() {
       setHourlyAdjustment(null);
     };
 
-  /* =======================================================
-     HOURLY DURATION VALIDATION
-     ======================================================= */
-
-  const validateHourlyDuration =
-    (): boolean => {
-      if (
-        !checkInTime ||
-        !checkOutTime
-      ) {
-        toast.error(
-          "Please select check-in and check-out time"
-        );
-
-        return false;
-      }
-
-      if (
-        checkInDate !==
-        checkOutDate
-      ) {
-        toast.error(
-          "Hourly booking must be on the same date"
-        );
-
-        return false;
-      }
-
-      const startMinutes =
-        getMinutesFromTime(
-          checkInTime
-        );
-
-      const endMinutes =
-        getMinutesFromTime(
-          checkOutTime
-        );
-
-      const duration =
-        endMinutes -
-        startMinutes;
-
-      if (duration <= 0) {
-        toast.error(
-          "Check-out time must be after check-in time"
-        );
-
-        return false;
-      }
-
-      if (duration < 60) {
-        toast.error(
-          "Hourly booking must be at least one hour"
-        );
-
-        return false;
-      }
-
-      /*
-       * Do not silently modify the
-       * user's input here.
-       *
-       * handleGetQuote() is responsible
-       * for opening the adjustment
-       * confirmation.
-       */
-      if (
-        duration % 60 !== 0
-      ) {
-        return false;
-      }
-
-      return true;
-    };
 
   /* =======================================================
      GET PRICE QUOTE
      ======================================================= */
 
   const handleGetQuote = async (
-    room: Room
+    room: Room,
+    overrides?: Partial<PendingQuote>
   ) => {
+    const currentBookingMode =
+      overrides?.bookingMode ?? bookingMode;
+    const currentCheckInDate =
+      overrides?.checkInDate ?? checkInDate;
+    const currentCheckOutDate =
+      overrides?.checkOutDate ?? checkOutDate;
+    const currentCheckInTime =
+      overrides?.checkInTime ?? checkInTime;
+    const currentCheckOutTime =
+      overrides?.checkOutTime ?? checkOutTime;
+    const currentAdults =
+      overrides?.adults ?? adults;
+    const currentChildren =
+      overrides?.children ?? children;
+
     if (!isAuthenticated) {
-      toast.error(
-        "Please login to continue"
+      const returnTo =
+        window.location.pathname +
+        window.location.search;
+
+      const pendingQuote: PendingQuote = {
+        hotelId: Number(params?.hotelId),
+        roomType: room.type,
+        bookingMode: currentBookingMode,
+        checkInDate: currentCheckInDate,
+        checkOutDate: currentCheckOutDate,
+        checkInTime: currentCheckInTime,
+        checkOutTime: currentCheckOutTime,
+        adults: currentAdults,
+        children: currentChildren,
+      };
+
+      sessionStorage.setItem(
+        "bookmystay_pending_quote",
+        JSON.stringify(pendingQuote)
       );
 
-      setLocation("/login");
+      toast.info("Please login to continue");
+
+      setLocation(
+        `/login?returnTo=${encodeURIComponent(returnTo)}`
+      );
 
       return;
     }
 
     if (
-      !checkInDate ||
-      !checkOutDate
+      !currentCheckInDate ||
+      !currentCheckOutDate
     ) {
       toast.error(
         "Please select check-in and check-out dates"
@@ -898,11 +882,11 @@ export default function HotelDetails() {
     }
 
     if (
-      bookingMode === "DAILY"
+      currentBookingMode === "DAILY"
     ) {
       if (
-        checkOutDate <=
-        checkInDate
+        currentCheckOutDate <=
+        currentCheckInDate
       ) {
         toast.error(
           "Check-out date must be after check-in date"
@@ -917,11 +901,11 @@ export default function HotelDetails() {
        ===================================================== */
 
     if (
-      bookingMode === "HOURLY"
+      currentBookingMode === "HOURLY"
     ) {
       if (
-        !checkInTime ||
-        !checkOutTime
+        !currentCheckInTime ||
+        !currentCheckOutTime
       ) {
         toast.error(
           "Please select check-in and check-out time"
@@ -931,8 +915,8 @@ export default function HotelDetails() {
       }
 
       if (
-        checkInDate !==
-        checkOutDate
+        currentCheckInDate !==
+        currentCheckOutDate
       ) {
         toast.error(
           "Hourly booking must be on the same date"
@@ -943,12 +927,12 @@ export default function HotelDetails() {
 
       const startMinutes =
         getMinutesFromTime(
-          checkInTime
+          currentCheckInTime
         );
 
       const endMinutes =
         getMinutesFromTime(
-          checkOutTime
+          currentCheckOutTime
         );
 
       const duration =
@@ -985,7 +969,12 @@ export default function HotelDetails() {
         duration % 60 !== 0
       ) {
         const adjustment =
-          getHourlyAdjustment();
+          getHourlyAdjustment(
+            currentCheckInTime,
+            currentCheckOutTime,
+            currentCheckInDate,
+            currentCheckOutDate
+          );
 
         if (adjustment) {
           setHourlyAdjustment(
@@ -1003,14 +992,9 @@ export default function HotelDetails() {
       }
 
       /*
-       * Final validation for exact
-       * whole-hour duration.
+       * The exact whole-hour duration
+       * has already been validated above.
        */
-      if (
-        !validateHourlyDuration()
-      ) {
-        return;
-      }
     }
 
     try {
@@ -1031,30 +1015,30 @@ export default function HotelDetails() {
             room.type,
 
           checkInDate:
-            checkInDate,
+            currentCheckInDate,
 
           checkOutDate:
-            checkOutDate,
+            currentCheckOutDate,
 
           adultCount:
-            adults,
+            currentAdults,
 
           childCount:
-            children,
+            currentChildren,
 
           bookingMode:
-            bookingMode,
+            currentBookingMode,
         };
 
       if (
-        bookingMode ===
+        currentBookingMode ===
         "HOURLY"
       ) {
         request.checkInTime =
-          checkInTime;
+          currentCheckInTime;
 
         request.checkOutTime =
-          checkOutTime;
+          currentCheckOutTime;
       }
 
       console.log(
@@ -1063,7 +1047,7 @@ export default function HotelDetails() {
       );
 
       const response =
-        bookingMode ===
+        currentBookingMode ===
         "DAILY"
           ? await bookingsApi.createDailyQuote(
               request
@@ -1098,6 +1082,148 @@ export default function HotelDetails() {
       setQuoteLoading(false);
     }
   };
+
+  /* =======================================================
+     RESTORE PENDING QUOTE AFTER LOGIN
+     ======================================================= */
+
+  useEffect(() => {
+    if (
+      authLoading ||
+      !isAuthenticated ||
+      loading ||
+      rooms.length === 0 ||
+      pendingQuoteHandled.current
+    ) {
+      return;
+    }
+
+    const stored =
+      sessionStorage.getItem(
+        "bookmystay_pending_quote"
+      );
+
+    if (!stored) {
+      return;
+    }
+
+    try {
+      const parsed =
+        JSON.parse(stored) as Partial<PendingQuote>;
+
+      if (
+        Number(parsed.hotelId) !==
+        Number(params?.hotelId)
+      ) {
+        return;
+      }
+
+      const room = rooms.find(
+        (item) =>
+          item.type === parsed.roomType
+      );
+
+      if (!room) {
+        sessionStorage.removeItem(
+          "bookmystay_pending_quote"
+        );
+
+        toast.error(
+          "The selected room type is no longer available."
+        );
+
+        return;
+      }
+
+      const pending: PendingQuote = {
+        hotelId:
+          Number(parsed.hotelId),
+
+        roomType:
+          parsed.roomType as RoomType,
+
+        bookingMode:
+          parsed.bookingMode ===
+          "HOURLY"
+            ? "HOURLY"
+            : "DAILY",
+
+        checkInDate:
+          parsed.checkInDate || "",
+
+        checkOutDate:
+          parsed.checkOutDate || "",
+
+        checkInTime:
+          parsed.checkInTime || "",
+
+        checkOutTime:
+          parsed.checkOutTime || "",
+
+        adults:
+          Number(parsed.adults) || 2,
+
+        children:
+          Number(parsed.children) || 0,
+      };
+
+      pendingQuoteHandled.current =
+        true;
+
+      setBookingMode(
+        pending.bookingMode
+      );
+
+      setCheckInDate(
+        pending.checkInDate
+      );
+
+      setCheckOutDate(
+        pending.checkOutDate
+      );
+
+      setCheckInTime(
+        pending.checkInTime
+      );
+
+      setCheckOutTime(
+        pending.checkOutTime
+      );
+
+      setAdults(
+        pending.adults
+      );
+
+      setChildren(
+        pending.children
+      );
+
+      sessionStorage.removeItem(
+        "bookmystay_pending_quote"
+      );
+
+      void handleGetQuote(
+        room,
+        pending
+      );
+    } catch (error) {
+      console.error(
+        "Failed to restore pending quote:",
+        error
+      );
+
+      sessionStorage.removeItem(
+        "bookmystay_pending_quote"
+      );
+    }
+  }, [
+    authLoading,
+    isAuthenticated,
+    loading,
+    rooms,
+    params?.hotelId,
+    handleGetQuote,
+  ]);
 
   /* =======================================================
      INITIALIZE BOOKING

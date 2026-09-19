@@ -31,10 +31,11 @@ import {
 } from "@/api/ownerBookings";
 
 const BOOKING_STATUSES: OwnerBookingStatus[] = [
-  "PENDING",
-  "CONFIRMED",
+  "PAYMENT_PENDING",
+  "BOOKED",
   "CANCELLED",
   "EXPIRED",
+  "REFUND",
 ];
 
 export default function OwnerBookings() {
@@ -193,8 +194,12 @@ export default function OwnerBookings() {
   }
 
   function formatAmount(
-    amount: number
+    amount: number | null | undefined
   ) {
+    if (amount == null) {
+      return "0";
+    }
+
     return amount.toLocaleString(
       "en-IN",
       {
@@ -207,19 +212,20 @@ export default function OwnerBookings() {
     status: OwnerBookingStatus
   ) {
     switch (status) {
-      case "CONFIRMED":
-        return "bg-green-50 text-green-700";
+  case "BOOKED":
+    return "bg-green-50 text-green-700";
 
-      case "PENDING":
-        return "bg-yellow-50 text-yellow-700";
+  case "PAYMENT_PENDING":
+    return "bg-yellow-50 text-yellow-700";
 
-      case "CANCELLED":
-      case "EXPIRED":
-        return "bg-red-50 text-red-700";
+  case "CANCELLED":
+  case "EXPIRED":
+  case "REFUND":
+    return "bg-red-50 text-red-700";
 
-      default:
-        return "bg-warm-stone/10 text-muted-foreground";
-    }
+  default:
+    return "bg-warm-stone/10 text-muted-foreground";
+}
   }
 
   const selectedHotel =

@@ -60,7 +60,7 @@ import OwnerSettings from "./pages/OwnerSettings";
 import OwnerHotelCreate from "./pages/OwnerHotelCreate";
 import OwnerHotelDetails from "./pages/OwnerHotelDetails";
 import OwnerReviews from "./pages/OwnerReviews";
-
+import OwnerHotelEdit from "./pages/OwnerHotelEdit";
 /* =========================================================
    ADMIN
 ========================================================= */
@@ -316,6 +316,15 @@ function Router() {
         component={() => (
           <ProtectedRoute requiredRole="ROLE_OWNER">
             <OwnerHotelCreate />
+          </ProtectedRoute>
+        )}
+      />
+
+      <Route
+        path="/owner/hotels/:hotelId/edit"
+        component={() => (
+          <ProtectedRoute requiredRole="ROLE_OWNER">
+            <OwnerHotelEdit />
           </ProtectedRoute>
         )}
       />

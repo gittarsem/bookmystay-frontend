@@ -36,87 +36,87 @@ const HOTEL_AMENITIES: {
   value: HotelAmenity;
   label: string;
 }[] = [
-  {
-    value: "FREE_WIFI",
-    label: "Free Wi-Fi",
-  },
-  {
-    value: "FREE_PARKING",
-    label: "Free Parking",
-  },
-  {
-    value: "SWIMMING_POOL",
-    label: "Swimming Pool",
-  },
-  {
-    value: "GYM",
-    label: "Gym",
-  },
-  {
-    value: "SPA",
-    label: "Spa",
-  },
-  {
-    value: "RESTAURANT",
-    label: "Restaurant",
-  },
-  {
-    value: "BAR",
-    label: "Bar",
-  },
-  {
-    value: "ROOM_SERVICE",
-    label: "Room Service",
-  },
-  {
-    value: "BREAKFAST_INCLUDED",
-    label: "Breakfast Included",
-  },
-  {
-    value: "AIR_CONDITIONING",
-    label: "Air Conditioning",
-  },
-  {
-    value: "ELEVATOR",
-    label: "Elevator",
-  },
-  {
-    value: "LAUNDRY_SERVICE",
-    label: "Laundry Service",
-  },
-  {
-    value: "FAMILY_ROOMS",
-    label: "Family Rooms",
-  },
-  {
-    value: "AIRPORT_SHUTTLE",
-    label: "Airport Shuttle",
-  },
-  {
-    value: "POWER_BACKUP",
-    label: "Power Backup",
-  },
-  {
-    value: "PET_FRIENDLY",
-    label: "Pet Friendly",
-  },
-  {
-    value: "BUSINESS_CENTER",
-    label: "Business Center",
-  },
-  {
-    value: "CONFERENCE_ROOM",
-    label: "Conference Room",
-  },
-  {
-    value: "CCTV_SECURITY",
-    label: "CCTV Security",
-  },
-  {
-    value: "EV_CHARGING",
-    label: "EV Charging",
-  },
-];
+    {
+      value: "FREE_WIFI",
+      label: "Free Wi-Fi",
+    },
+    {
+      value: "FREE_PARKING",
+      label: "Free Parking",
+    },
+    {
+      value: "SWIMMING_POOL",
+      label: "Swimming Pool",
+    },
+    {
+      value: "GYM",
+      label: "Gym",
+    },
+    {
+      value: "SPA",
+      label: "Spa",
+    },
+    {
+      value: "RESTAURANT",
+      label: "Restaurant",
+    },
+    {
+      value: "BAR",
+      label: "Bar",
+    },
+    {
+      value: "ROOM_SERVICE",
+      label: "Room Service",
+    },
+    {
+      value: "BREAKFAST_INCLUDED",
+      label: "Breakfast Included",
+    },
+    {
+      value: "AIR_CONDITIONING",
+      label: "Air Conditioning",
+    },
+    {
+      value: "ELEVATOR",
+      label: "Elevator",
+    },
+    {
+      value: "LAUNDRY_SERVICE",
+      label: "Laundry Service",
+    },
+    {
+      value: "FAMILY_ROOMS",
+      label: "Family Rooms",
+    },
+    {
+      value: "AIRPORT_SHUTTLE",
+      label: "Airport Shuttle",
+    },
+    {
+      value: "POWER_BACKUP",
+      label: "Power Backup",
+    },
+    {
+      value: "PET_FRIENDLY",
+      label: "Pet Friendly",
+    },
+    {
+      value: "BUSINESS_CENTER",
+      label: "Business Center",
+    },
+    {
+      value: "CONFERENCE_ROOM",
+      label: "Conference Room",
+    },
+    {
+      value: "CCTV_SECURITY",
+      label: "CCTV Security",
+    },
+    {
+      value: "EV_CHARGING",
+      label: "EV Charging",
+    },
+  ];
 
 /* =========================================================
    FORM
@@ -125,6 +125,7 @@ const HOTEL_AMENITIES: {
 interface HotelForm {
   name: string;
   city: string;
+  state: string;
   address: string;
   phoneNumber: string;
   email: string;
@@ -133,12 +134,13 @@ interface HotelForm {
 }
 
 const initialForm: HotelForm = {
-  name: "",
-  city: "",
-  address: "",
-  phoneNumber: "",
-  email: "",
-  description: "",
+  name: "Hotel Name Here",
+  city: "City Name Here",
+  state: "State Name Here",
+  address: "Hotel Address Here",
+  phoneNumber: "Phone Number Here",
+  email: "Email Address Here",
+  description: "Hotel Description Here",
   amenities: [],
 };
 
@@ -210,12 +212,12 @@ export default function OwnerHotelCreate() {
         ...current,
         amenities: selected
           ? current.amenities.filter(
-              (item) => item !== amenity
-            )
+            (item) => item !== amenity
+          )
           : [
-              ...current.amenities,
-              amenity,
-            ],
+            ...current.amenities,
+            amenity,
+          ],
       };
     });
   };
@@ -340,19 +342,13 @@ export default function OwnerHotelCreate() {
 
     const request: OwnerHotelRequest = {
       name: form.name.trim(),
-
-      city: form.city.trim(),
-
+      city: `${form.city.trim()}, ${form.state.trim()}`,
       hotelContactInfo: {
         address: form.address.trim(),
-        phoneNumber:
-          form.phoneNumber.trim(),
+        phoneNumber: form.phoneNumber.trim(),
         email: form.email.trim(),
       },
-
-      description:
-        form.description.trim(),
-
+      description: form.description.trim(),
       amenities: form.amenities,
     };
 
@@ -660,18 +656,16 @@ export default function OwnerHotelCreate() {
                           amenity.value
                         )
                       }
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                        selected
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${selected
                           ? "border-bronze/50 bg-bronze/8 text-espresso"
                           : "border-warm-stone/20 bg-white text-espresso/70 hover:border-bronze/30 hover:bg-cream"
-                      }`}
+                        }`}
                     >
                       <span
-                        className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
-                          selected
+                        className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${selected
                             ? "bg-bronze border-bronze text-white"
                             : "border-warm-stone/40"
-                        }`}
+                          }`}
                       >
                         {selected && (
                           <Check className="w-3 h-3" />
@@ -712,11 +706,10 @@ export default function OwnerHotelCreate() {
               onClick={() =>
                 fileInputRef.current?.click()
               }
-              className={`w-full border-2 border-dashed rounded-2xl px-6 py-10 text-center transition-colors ${
-                errors.images
+              className={`w-full border-2 border-dashed rounded-2xl px-6 py-10 text-center transition-colors ${errors.images
                   ? "border-red-300 bg-red-50/30"
                   : "border-warm-stone/30 hover:border-bronze/50 hover:bg-cream/40"
-              }`}
+                }`}
             >
               <div className="w-12 h-12 rounded-xl bg-bronze/10 flex items-center justify-center mx-auto">
                 <Upload className="w-5 h-5 text-bronze" />
@@ -931,9 +924,8 @@ function Field({
 function inputClass(
   hasError: boolean
 ) {
-  return `w-full rounded-xl border bg-white px-3.5 py-3 text-sm text-espresso placeholder:text-muted-foreground/60 outline-none transition-all ${
-    hasError
+  return `w-full rounded-xl border bg-white px-3.5 py-3 text-sm text-espresso placeholder:text-muted-foreground/60 outline-none transition-all ${hasError
       ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100"
       : "border-warm-stone/25 focus:border-bronze/50 focus:ring-2 focus:ring-bronze/10"
-  }`;
+    }`;
 }

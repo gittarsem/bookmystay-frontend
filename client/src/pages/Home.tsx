@@ -136,6 +136,12 @@ export default function Home() {
   const [loadingReviews, setLoadingReviews] =
     useState(true);
 
+  const [reviewStartIndex, setReviewStartIndex] =
+    useState(0);
+
+  const [reviewsPaused, setReviewsPaused] =
+    useState(false);
+
 
   /* =======================================================
      HERO BACKGROUND ANIMATION
@@ -410,15 +416,26 @@ export default function Home() {
             responses.flat();
 
 
-          // Show only 3 real reviews
-          // on homepage.
+          const uniqueReviews =
+            Array.from(
+              new Map(
+                allReviews.map(
+                  (review) => [
+                    review.reviewId,
+                    review,
+                  ]
+                )
+              ).values()
+            );
 
           setReviews(
-            allReviews.slice(
+            uniqueReviews.slice(
               0,
-              3
+              18
             )
           );
+
+          setReviewStartIndex(0);
 
         } catch (error) {
 
@@ -444,6 +461,40 @@ export default function Home() {
     fetchReviews();
 
   }, [hotels]);
+
+
+  useEffect(() => {
+
+    if (
+      reviews.length <= 3 ||
+      reviewsPaused
+    ) {
+      return;
+    }
+
+    const interval =
+      window.setInterval(() => {
+
+        setReviewStartIndex(
+          (current) =>
+            (current + 1) %
+            reviews.length
+        );
+
+      }, 5500);
+
+    return () => {
+
+      window.clearInterval(
+        interval
+      );
+
+    };
+
+  }, [
+    reviews.length,
+    reviewsPaused,
+  ]);
 
 
   return (
@@ -1403,184 +1454,382 @@ export default function Home() {
           ) : (
 
             <div
-              className="
-                grid
-                grid-cols-1
-                gap-8
-                md:grid-cols-3
-              "
+              className="relative"
+              onMouseEnter={() =>
+                setReviewsPaused(true)
+              }
+              onMouseLeave={() =>
+                setReviewsPaused(false)
+              }
             >
 
-              {reviews
-                .slice(0, 3)
-                .map(
+              <div
+                className="
+                  grid
+                  grid-cols-1
+                  gap-8
+                  md:grid-cols-3
+                "
+              >
+
+                {Array.from({
+                  length:
+                    Math.min(
+                      3,
+                      reviews.length
+                    ),
+                }).map(
                   (
-                    review,
-                    index
-                  ) => (
+                    _,
+                    cardIndex
+                  ) => {
 
-                    <motion.div
-                      key={
-                        review.reviewId
-                      }
-                      initial={{
-                        opacity: 0,
-                        y: 20,
-                      }}
-                      whileInView={{
-                        opacity: 1,
-                        y: 0,
-                      }}
-                      viewport={{
-                        once: true,
-                      }}
-                      transition={{
-                        duration: 0.5,
-                        delay:
-                          index *
-                          0.1,
-                      }}
-                      className="
-                        relative
-                        rounded-2xl
-                        bg-cream
-                        p-8
-                      "
-                    >
+                    const review =
+                      reviews[
+                        (
+                          reviewStartIndex +
+                          cardIndex
+                        ) %
+                        reviews.length
+                      ];
 
-                      <Quote
-                        className="
-                          absolute
-                          right-6
-                          top-6
-                          h-8
-                          w-8
-                          text-bronze/20
-                        "
-                      />
+                    const hotelName =
+                      "hotelName" in review &&
+                      typeof review.hotelName ===
+                        "string" &&
+                      review.hotelName.trim()
+                        ? review.hotelName
+                        : "hotelId" in review
+                          ? hotels.find(
+                              (hotel) =>
+                                String(
+                                  hotel.id
+                                ) ===
+                                String(
+                                  review.hotelId
+                                )
+                            )?.name
+                          : undefined;
 
+                    const words =
+                      review.comment
+                        ?.trim()
+                        .split(
+                          /\s+/
+                        ) ?? [];
 
-                      <div
-                        className="
-                          mb-4
-                          flex
-                          gap-0.5
-                        "
+                    return (
+
+                      <AnimatePresence
+                        key={
+                          `review-card-${cardIndex}`
+                        }
+                        mode="wait"
                       >
 
-                        {Array.from({
-                          length:
-                            review.rating,
-                        }).map(
-                          (
-                            _,
-                            i
-                          ) => (
-
-                            <Star
-                              key={
-                                i
-                              }
-                              className="
-                                h-4
-                                w-4
-                                fill-bronze
-                                text-bronze
-                              "
-                            />
-
-                          )
-                        )}
-
-                      </div>
-
-
-                      <p
-                        className="
-                          mb-6
-                          leading-relaxed
-                          italic
-                          text-espresso/80
-                        "
-                      >
-                        "{review.comment}"
-                      </p>
-
-
-                      <div
-                        className="
-                          flex
-                          items-center
-                          gap-3
-                        "
-                      >
-
-                        <div
+                        <motion.div
+                          key={
+                            `${review.reviewId}-${cardIndex}`
+                          }
+                          initial={{
+                            opacity: 0,
+                            y: 18,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                          }}
+                          exit={{
+                            opacity: 0,
+                            y: -12,
+                          }}
+                          transition={{
+                            duration: 0.45,
+                            ease:
+                              "easeOut",
+                          }}
                           className="
+                            relative
                             flex
-                            h-10
-                            w-10
-                            items-center
-                            justify-center
-                            rounded-full
-                            bg-bronze/10
+                            min-h-[340px]
+                            flex-col
+                            rounded-2xl
+                            bg-cream
+                            p-8
                           "
                         >
 
-                          <span
+                          <Quote
                             className="
-                              text-sm
-                              font-semibold
-                              text-bronze
+                              absolute
+                              right-6
+                              top-6
+                              h-8
+                              w-8
+                              text-bronze/20
+                            "
+                          />
+
+
+                          <div
+                            className="
+                              mb-4
+                              flex
+                              gap-0.5
                             "
                           >
 
-                            {
-                              review.guestName
-                                ?.charAt(
-                                  0
-                                )
-                                ?.toUpperCase() ||
-                              "G"
-                            }
+                            {Array.from({
+                              length:
+                                review.rating,
+                            }).map(
+                              (
+                                _,
+                                i
+                              ) => (
 
-                          </span>
+                                <Star
+                                  key={
+                                    i
+                                  }
+                                  className="
+                                    h-4
+                                    w-4
+                                    fill-bronze
+                                    text-bronze
+                                  "
+                                />
 
-                        </div>
+                              )
+                            )}
+
+                          </div>
 
 
-                        <div>
+                          {hotelName && (
 
-                          <p
+                            <p
+                              className="
+                                mb-3
+                                pr-10
+                                text-[11px]
+                                font-semibold
+                                uppercase
+                                tracking-[0.14em]
+                                text-bronze
+                              "
+                            >
+                              {hotelName}
+                            </p>
+
+                          )}
+
+
+                          <motion.p
                             className="
-                              text-sm
-                              font-semibold
-                              text-espresso
+                              mb-7
+                              leading-relaxed
+                              italic
+                              text-espresso/80
                             "
                           >
-                            {
-                              review.guestName
-                            }
-                          </p>
+
+                            "{words.map(
+                              (
+                                word,
+                                index
+                              ) => (
+
+                                <motion.span
+                                  key={
+                                    `${review.reviewId}-word-${index}`
+                                  }
+                                  initial={{
+                                    opacity: 0,
+                                    y: 4,
+                                  }}
+                                  animate={{
+                                    opacity: 1,
+                                    y: 0,
+                                  }}
+                                  transition={{
+                                    duration:
+                                      0.16,
+                                    delay:
+                                      Math.min(
+                                        index *
+                                          0.012,
+                                        0.28
+                                      ),
+                                  }}
+                                  className="inline-block"
+                                >
+                                  {word}
+                                  {index <
+                                  words.length -
+                                    1
+                                    ? "\u00a0"
+                                    : ""}
+                                </motion.span>
+
+                              )
+                            )}
+
+                          </motion.p>
 
 
-                          <p
+                          <div
                             className="
-                              text-xs
-                              text-muted-foreground
+                              mt-auto
+                              flex
+                              items-center
+                              gap-3
                             "
                           >
-                            Verified Guest
-                          </p>
 
-                        </div>
+                            <div
+                              className="
+                                flex
+                                h-10
+                                w-10
+                                shrink-0
+                                items-center
+                                justify-center
+                                rounded-full
+                                bg-bronze/10
+                              "
+                            >
 
-                      </div>
+                              <span
+                                className="
+                                  text-sm
+                                  font-semibold
+                                  text-bronze
+                                "
+                              >
 
-                    </motion.div>
+                                {
+                                  review.guestName
+                                    ?.charAt(
+                                      0
+                                    )
+                                    ?.toUpperCase() ||
+                                  "G"
+                                }
 
-                  )
+                              </span>
+
+                            </div>
+
+
+                            <div>
+
+                              <p
+                                className="
+                                  text-sm
+                                  font-semibold
+                                  text-espresso
+                                "
+                              >
+                                {
+                                  review.guestName
+                                }
+                              </p>
+
+
+                              <p
+                                className="
+                                  text-xs
+                                  text-muted-foreground
+                                "
+                              >
+                                Verified Guest
+                              </p>
+
+                            </div>
+
+                          </div>
+
+                        </motion.div>
+
+                      </AnimatePresence>
+
+                    );
+
+                  }
                 )}
+
+              </div>
+
+
+              {reviews.length > 3 && (
+
+                <div
+                  className="
+                    mt-8
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                  "
+                >
+
+                  {Array.from({
+                    length:
+                      Math.min(
+                        reviews.length,
+                        6
+                      ),
+                  }).map(
+                    (
+                      _,
+                      index
+                    ) => {
+
+                      const active =
+                        reviewStartIndex %
+                          Math.min(
+                            reviews.length,
+                            6
+                          ) ===
+                        index;
+
+                      return (
+
+                        <button
+                          key={
+                            index
+                          }
+                          type="button"
+                          onClick={() =>
+                            setReviewStartIndex(
+                              index
+                            )
+                          }
+                          aria-label={
+                            `Show guest reviews ${index + 1}`
+                          }
+                          className={`
+                            h-1.5
+                            rounded-full
+                            transition-all
+                            duration-300
+                            ${
+                              active
+                                ? "w-7 bg-bronze"
+                                : "w-1.5 bg-bronze/25 hover:bg-bronze/50"
+                            }
+                          `}
+                        />
+
+                      );
+
+                    }
+                  )}
+
+                </div>
+
+              )}
 
             </div>
 

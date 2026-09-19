@@ -46,6 +46,13 @@ export interface OwnerHotelResponse {
   active: boolean;
 }
 
+export interface OwnerHotelInfo {
+  hotels: OwnerHotelResponse;
+  description: string;
+  images: string[];
+  amenities: HotelAmenity[];
+}
+
 export const ownerHotelsApi = {
   getMyHotels() {
     return api.get<OwnerHotelResponse[]>(
@@ -56,6 +63,12 @@ export const ownerHotelsApi = {
   getById(hotelId: number) {
     return api.get<OwnerHotelResponse>(
       `/owner/hotel/${hotelId}`
+    );
+  },
+
+  getInfo(hotelId: number) {
+    return api.get<OwnerHotelInfo>(
+      `/hotels/${hotelId}/info`
     );
   },
 

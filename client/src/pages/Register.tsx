@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Compass, Eye, EyeOff } from "lucide-react";
@@ -12,26 +12,43 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const { register } = useAuth();
   const [, setLocation] = useLocation();
 
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
+  const returnTo = searchParams.get("returnTo");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
+
     setLoading(true);
+
     try {
       await register(name, email, password);
+
       toast.success("Account created successfully!");
-      setLocation("/");
+
+      setLocation(returnTo || "/");
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to create account. Please try again.");
+      toast.error(
+        err?.response?.data?.message ||
+          "Failed to create account. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  const loginPath = returnTo
+    ? `/login?returnTo=${encodeURIComponent(returnTo)}`
+    : "/login";
 
   return (
     <div className="min-h-screen bg-cream flex">
@@ -45,12 +62,16 @@ export default function Register() {
         >
           <div className="flex items-center gap-2 mb-10">
             <Compass className="w-8 h-8 text-bronze" />
-            <span className="font-serif text-2xl font-bold text-espresso">BookMyStay</span>
+
+            <span className="font-serif text-2xl font-bold text-espresso">
+              BookMyStay
+            </span>
           </div>
 
           <h1 className="font-serif text-3xl font-bold text-espresso mb-2">
             Create Account
           </h1>
+
           <p className="text-muted-foreground mb-8">
             Begin your journey to extraordinary stays.
           </p>
@@ -60,6 +81,7 @@ export default function Register() {
               <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">
                 Full Name
               </label>
+
               <input
                 type="text"
                 value={name}
@@ -74,6 +96,7 @@ export default function Register() {
               <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">
                 Email
               </label>
+
               <input
                 type="email"
                 value={email}
@@ -88,6 +111,7 @@ export default function Register() {
               <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">
                 Password
               </label>
+
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -98,12 +122,17 @@ export default function Register() {
                   placeholder="Minimum 6 characters"
                   className="w-full px-4 py-3 bg-white rounded-xl border border-warm-stone/30 text-espresso placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-bronze/20 focus:border-bronze/40 transition-all text-sm pr-10"
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-espresso transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -112,6 +141,7 @@ export default function Register() {
               <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">
                 Confirm Password
               </label>
+
               <input
                 type="password"
                 value={confirmPassword}
@@ -133,7 +163,11 @@ export default function Register() {
 
           <p className="text-center mt-6 text-sm text-muted-foreground">
             Already have an account?{" "}
-            <a href="/login" className="text-bronze font-medium hover:text-bronze-dark transition-colors">
+
+            <a
+              href={loginPath}
+              className="text-bronze font-medium hover:text-bronze-dark transition-colors"
+            >
               Sign in
             </a>
           </p>
@@ -143,16 +177,21 @@ export default function Register() {
       {/* Right - Image */}
       <div className="hidden lg:block lg:w-1/2 relative">
         <img
-        src="https://media.cntraveller.com/photos/66cd9a6cdc0c409d606dcb72/4:3/w_4852,h_3639,c_limit/maldives-best%20all%20inclusive%20hotel%20maldives-GettyImages-1406869055.jpg" 
+          src="https://media.cntraveller.com/photos/66cd9a6cdc0c409d606dcb72/4:3/w_4852,h_3639,c_limit/maldives-best%20all%20inclusive%20hotel%20maldives-GettyImages-1406869055.jpg"
           alt="Luxury destination"
           className="absolute inset-0 w-full h-full object-cover"
         />
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+
         <div className="absolute bottom-12 left-12 right-12">
           <p className="text-white/80 text-sm italic">
             "Join a community of travelers who seek the extraordinary in every journey."
           </p>
-          <p className="text-white/50 text-xs mt-2">— BookMyStay Community</p>
+
+          <p className="text-white/50 text-xs mt-2">
+            — BookMyStay Community
+          </p>
         </div>
       </div>
     </div>

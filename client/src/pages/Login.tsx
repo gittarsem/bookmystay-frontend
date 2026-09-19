@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Compass, Eye, EyeOff } from "lucide-react";
@@ -10,22 +10,37 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const { login } = useAuth();
   const [, setLocation] = useLocation();
+
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
+  const returnTo = searchParams.get("returnTo");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     try {
       await login(email, password);
+
       toast.success("Welcome back!");
-      setLocation("/");
+
+      setLocation(returnTo || "/");
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Invalid credentials. Please try again.");
+      toast.error(
+        err?.response?.data?.message ||
+          "Invalid credentials. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  const registerPath = returnTo
+    ? `/register?returnTo=${encodeURIComponent(returnTo)}`
+    : "/register";
 
   return (
     <div className="min-h-screen bg-cream flex">
@@ -39,12 +54,16 @@ export default function Login() {
         >
           <div className="flex items-center gap-2 mb-10">
             <Compass className="w-8 h-8 text-bronze" />
-            <span className="font-serif text-2xl font-bold text-espresso">BookMyStay</span>
+
+            <span className="font-serif text-2xl font-bold text-espresso">
+              BookMyStay
+            </span>
           </div>
 
           <h1 className="font-serif text-3xl font-bold text-espresso mb-2">
             Welcome Back
           </h1>
+
           <p className="text-muted-foreground mb-8">
             Sign in to continue your journey with us.
           </p>
@@ -54,6 +73,7 @@ export default function Login() {
               <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">
                 Email
               </label>
+
               <input
                 type="email"
                 value={email}
@@ -68,6 +88,7 @@ export default function Login() {
               <label className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-1.5 block">
                 Password
               </label>
+
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -77,12 +98,17 @@ export default function Login() {
                   placeholder="Enter your password"
                   className="w-full px-4 py-3 bg-white rounded-xl border border-warm-stone/30 text-espresso placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-bronze/20 focus:border-bronze/40 transition-all text-sm pr-10"
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-espresso transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -98,7 +124,11 @@ export default function Login() {
 
           <p className="text-center mt-6 text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <a href="/register" className="text-bronze font-medium hover:text-bronze-dark transition-colors">
+
+            <a
+              href={registerPath}
+              className="text-bronze font-medium hover:text-bronze-dark transition-colors"
+            >
               Create one
             </a>
           </p>
@@ -112,12 +142,17 @@ export default function Login() {
           alt="Luxury resort"
           className="absolute inset-0 w-full h-full object-cover"
         />
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+
         <div className="absolute bottom-12 left-12 right-12">
           <p className="text-white/80 text-sm italic">
             "Every stay should feel like a homecoming, but extraordinary."
           </p>
-          <p className="text-white/50 text-xs mt-2">— BookMyStay Philosophy</p>
+
+          <p className="text-white/50 text-xs mt-2">
+            — BookMyStay Philosophy
+          </p>
         </div>
       </div>
     </div>
